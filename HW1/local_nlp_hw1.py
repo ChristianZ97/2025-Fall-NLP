@@ -289,7 +289,7 @@ with open("wiki_texts_sampled.txt", 'r', encoding='utf-8') as f:
             processed_words = gensim_preprocess(line)
             if len(processed_words) >= 5:
                 sentences.append(processed_words)
-        if line_num % 100 == 0:
+        if line_num % 10000 == 0:
             print(f"Processed {line_num} lines")
 print(f"Total {len(sentences)} valid sentences")
 
