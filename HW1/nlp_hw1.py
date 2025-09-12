@@ -67,6 +67,9 @@ df.to_csv(f"{file_name}.csv", index=False)
 - After finish Part I, you can run Part II code blocks only.
 """
 
+# Commented out IPython magic to ensure Python compatibility.
+# %pip install gensim # add requirement
+
 import pandas as pd
 import numpy as np
 import gensim.downloader
@@ -221,21 +224,52 @@ wiki_txt_path = "wiki_texts_combined.txt"
 # wiki_texts_combined.txt is a text file separated by linebreaks (\n).
 # Each row in wiki_texts_combined.txt indicates a Wikipedia article.
 
-output_path = "wiki_texts_smapled.txt" # add this
+output_path = "wiki_texts_sampled.txt" # add this
 
 with open(wiki_txt_path, "r", encoding="utf-8") as f:
     with open(output_path, "w", encoding="utf-8") as output_file:
     # TODO4: Sample `20%` Wikipedia articles
     # Write your code here
         all_lines = f.readlines()
-        sampled_lines = random.sample(all_lines, int(len(all_lines) * 0.2))
+        sampled_lines = random.sample(all_lines, int(len(all_lines) * 0.05))
 
         for line in sampled_lines:
           output_file.write(line)
 
+# Commented out IPython magic to ensure Python compatibility.
 # TODO5: Train your own word embeddings with the sampled articles
 # https://radimrehurek.com/gensim/models/word2vec.html#gensim.models.word2vec.Word2Vec
 # Hint: You should perform some pre-processing before training.
+
+# %pip install gensim
+from gensim.models import Word2Vec
+from gensim.utils import simple_preprocess
+from gensim.parsing.preprocessing import remove_stopwords
+import re
+
+def gensim_preprocess(text):
+    text = remove_stopwords(text.lower())
+    tokens = simple_preprocess(text, min_len=3, max_len=15)
+    return tokens
+
+print("Pre-processing corpus...")
+sentences = []
+with open("wiki_texts_sampled.txt", 'r', encoding='utf-8') as f:
+    for line_num, line in enumerate(f):
+        line = line.strip()
+        if line:
+            processed_words = gensim_preprocess(line)
+            if len(processed_words) >= 5:
+                sentences.append(processed_words)
+        if line_num % 100 == 0:
+            print(f"Processed {line_num} lines")
+print(f"Total {len(sentences)} valid sentences")
+
+
+print("Pretraining Word2Vec...")
+model = Word2Vec(sentences=sentences, vector_size=100, window=5, min_count=5, workers=4, sg=0, epochs=5)
+model.save("word2vec.model")
+print("Done!")
 
 data = pd.read_csv("questions-words.csv")
 
@@ -254,10 +288,59 @@ for analogy in tqdm(data["Question"]):
       # Mikolov et al., 2013: X = vector(”biggest”) − vector(”big”) + vector(”small”).
       """
 
+      word_a, word_b, word_c, word_d = analogy.split()
+      golds.append(word_d)
+
+      try:
+        res_seq = model.most_similar(positive=[word_b, word_c], negative=[word_a], topn=1)
+        # using the provided source
+        # return a sequence of (key, similarity)
+
+        pred = res_seq[0][0]
+        preds.append(pred)
+
+      except:
+        preds.append(None)
+
 # Collect words from Google Analogy dataset
 SUB_CATEGORY = ": family"
 
 # TODO7: Plot t-SNE for the words in the SUB_CATEGORY `: family`
+
+# get words and vecs
+family_words = []
+family_vectors = []
+
+for analogy, subcategory in zip(data["Question"], data["SubCategory"]):
+    if subcategory == SUB_CATEGORY:
+        words = analogy.split()
+
+        for word in words:
+            if word in model.key_to_index and word not in family_words:
+                family_words.append(word)
+                family_vectors.append(model[word])
+
+family_vectors = np.array(family_vectors)
+
+
+# tsne
+tsne = TSNE(n_components=2, perplexity=min(30, len(family_vectors)-1), random_state=42)
+vectors_2d = tsne.fit_transform(family_vectors)
+
+
+# fig
+plt.figure(figsize=(12, 8))
+scatter = plt.scatter(vectors_2d[:, 0], vectors_2d[:, 1], s=100, alpha=0.7, c='blue')
+for i, word in enumerate(family_words):
+    plt.annotate(word,
+                xy=(vectors_2d[i, 0], vectors_2d[i, 1]),
+                xytext=(5, 2),
+                textcoords='offset points',
+                fontsize=10,
+                ha='left')
+
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
 
 
 plt.title("Word Relationships from Google Analogy Task")
