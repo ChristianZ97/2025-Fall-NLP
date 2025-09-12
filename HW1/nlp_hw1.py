@@ -230,11 +230,18 @@ with open(wiki_txt_path, "r", encoding="utf-8") as f:
     with open(output_path, "w", encoding="utf-8") as output_file:
     # TODO4: Sample `20%` Wikipedia articles
     # Write your code here
-        all_lines = f.readlines()
-        sampled_lines = random.sample(all_lines, int(len(all_lines) * 0.05))
 
-        for line in sampled_lines:
-          output_file.write(line)
+        # all_lines = f.readlines() # this will fxxk the ram
+
+        total_lines = sum(1 for _ in f)
+        sample_ratio = 0.2
+        sample_size = int(total_lines * sample_ratio)
+
+        f.seek(0)
+        selected_lines = set(random.sample(range(total_lines), sample_size))
+        for line_num, line in enumerate(f):
+            if line_num in selected_lines:
+                output_file.write(line)
 
 # Commented out IPython magic to ensure Python compatibility.
 # TODO5: Train your own word embeddings with the sampled articles
