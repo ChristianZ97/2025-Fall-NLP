@@ -13,7 +13,6 @@ Original file is located at
 # %pip install gensim # add requirement
 import matplotlib
 matplotlib.use('Agg')
-
 import os
 os.environ['MPLBACKEND'] = 'Agg'
 
@@ -192,7 +191,7 @@ plt.savefig("word_relationships.png", bbox_inches="tight")
 - Usually, we start from Wikipedia dump (https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2). However, the downloading step will take very long. Also, the cleaning step for the Wikipedia corpus ([`gensim.corpora.wikicorpus.WikiCorpus`](https://radimrehurek.com/gensim/corpora/wikicorpus.html#gensim.corpora.wikicorpus.WikiCorpus)) will take much time. Therefore, we provide cleaned files for you.
 """
 
-'''
+"""
 # Download the split Wikipedia files
 # Each file contain 562365 lines (articles).
 !gdown --id 1jiu9E1NalT2Y8EIuWNa1xf2Tw1f1XuGd -O wiki_texts_part_0.txt.gz
@@ -225,7 +224,8 @@ drive.mount('/content/drive')
 
 # Check the first ten lines of the combined file
 !head -n 10 wiki_texts_combined.txt
-'''
+
+"""
 
 """Please note that we used the default parameters of [`gensim.corpora.wikicorpus.WikiCorpus`](https://radimrehurek.com/gensim/corpora/wikicorpus.html#gensim.corpora.wikicorpus.WikiCorpus) for cleaning the Wiki raw file. Thus, words with one character were discarded."""
 
@@ -261,11 +261,16 @@ with open(wiki_txt_path, "r", encoding="utf-8") as f:
 # https://radimrehurek.com/gensim/models/word2vec.html#gensim.models.word2vec.Word2Vec
 # Hint: You should perform some pre-processing before training.
 
+import logging
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+
 from gensim.models import Word2Vec
+from gensim.models.callbacks import CallbackAny2Vec
 from gensim.utils import simple_preprocess
 from gensim.parsing.preprocessing import remove_stopwords
 import re
 
+# Define some utils here
 def gensim_preprocess(text):
     text = remove_stopwords(text.lower())
     tokens = simple_preprocess(text, min_len=3, max_len=15)
@@ -274,30 +279,23 @@ def gensim_preprocess(text):
 class PreProcessSentences:
     def __init__(self, filename):
         self.filename = filename
-
+        print(f"\n\n")
     def __iter__(self):
-        processed_count = 0
         with open(self.filename, 'r', encoding='utf-8') as f:
             for line_num, line in enumerate(f):
                 line = line.strip()
                 if line:
                     processed_words = gensim_preprocess(line)
                     if len(processed_words) >= 5:
-                        processed_count += 1
                         yield processed_words
-                if line_num % 10000 == 0:
-                    print(f"Processed {line_num} lines, yielded {processed_count} valid sentences")
+                if line_num % 50000 == 0:
+                    print(f"Processed {line_num} lines")
 
-
-
-print("Pre-processing corpus...")
+# Pre-proccess and Training
 sentences = PreProcessSentences("wiki_texts_sampled.txt")
-
-
-print("Pretraining Word2Vec...")
 my_model = Word2Vec(sentences=sentences, vector_size=100, window=5, min_count=5, workers=4, sg=0, epochs=5, compute_loss=False)
 my_model.save("word2vec.model")
-print("Done!")
+print("Done!\n")
 
 data = pd.read_csv("questions-words.csv")
 
@@ -346,7 +344,7 @@ for analogy, subcategory in zip(data["Question"], data["SubCategory"]):
         for word in words:
             if word in my_model.wv.key_to_index and word not in family_words:
                 family_words.append(word)
-                family_vectors.append(my_model[word])
+                family_vectors.append(my_model.wv[word])
 
 family_vectors = np.array(family_vectors)
 
