@@ -289,8 +289,23 @@ class PreProcessSentences:
 
 # Pre-proccess and Training
 sentences = PreProcessSentences("wiki_texts_sampled.txt")
-my_model = Word2Vec(sentences=sentences, vector_size=100, window=10, min_count=2, workers=12, sg=0, epochs=3, compute_loss=False)
-my_model.save("word2vec.model")
+
+# Some hyper grid search
+param_grid = {
+    'window': [3, 5, 8, 12],
+    'min_count': [2, 5, 10],
+    'sg': [0, 1]  # CBOW vs Skip-gram
+}
+my_model_list = []
+
+for window in param_grid['window']:
+    for min_count in param_grid['min_count']:
+        for sg in param_grid['sg']:
+            print(f"Training model with window={window}, min_count={min_count}, sg={sg}\n")
+            my_model = Word2Vec(sentences=sentences, vector_size=100, window=window, min_count=min_count, workers=12, sg=sg, epochs=3, compute_loss=False)
+            my_model.save(f"word2vec_window{window}_mincount{min_count}_sg{sg}.model")
+            my_model_list.append(my_model)
+
 print("Done!\n")
 
 data = pd.read_csv("questions-words.csv")
@@ -299,6 +314,7 @@ data = pd.read_csv("questions-words.csv")
 preds = []
 golds = []
 
+acc_subcat_results = {}
 for analogy in tqdm(data["Question"]):
       # TODO6: Write your code here to use your trained word embeddings for getting predictions of the analogy task.
       # You should also preserve the gold answers during iterations for evaluations later.
@@ -313,39 +329,42 @@ for analogy in tqdm(data["Question"]):
       word_a, word_b, word_c, word_d = analogy.split()
       golds.append(word_d)
 
-      try:
-        res_seq = my_model.wv.most_similar(positive=[word_b, word_c], negative=[word_a], topn=1)
-        # using the provided source
-        # return a sequence of (key, similarity)
+      for my_model in my_model_list:
+          try:
+            res_seq = my_model.wv.most_similar(positive=[word_b, word_c], negative=[word_a], topn=1)
+            # using the provided source
+            # return a sequence of (key, similarity)
 
-        pred = res_seq[0][0]
-        preds.append(pred)
+            pred = res_seq[0][0]
+            preds.append(pred)
 
-      except:
-        preds.append(None)
+          except:
+            preds.append(None)
 
 
-# Perform evaluations. You do not need to modify this block!!
+          # start evaluate
+          def calculate_accuracy(gold: np.ndarray, pred: np.ndarray) -> float:
+              return np.mean(gold == pred)
 
-def calculate_accuracy(gold: np.ndarray, pred: np.ndarray) -> float:
-    return np.mean(gold == pred)
+          golds_np, preds_np = np.array(golds), np.array(preds)
+          data = pd.read_csv("questions-words.csv")
 
-golds_np, preds_np = np.array(golds), np.array(preds)
-data = pd.read_csv("questions-words.csv")
+          # Evaluation: categories
+          for category in data["Category"].unique():
+              mask = data["Category"] == category
+              golds_cat, preds_cat = golds_np[mask], preds_np[mask]
+              acc_cat = calculate_accuracy(golds_cat, preds_cat)
+              print(f"Category: {category}, Accuracy: {acc_cat * 100}%")
 
-# Evaluation: categories
-for category in data["Category"].unique():
-    mask = data["Category"] == category
-    golds_cat, preds_cat = golds_np[mask], preds_np[mask]
-    acc_cat = calculate_accuracy(golds_cat, preds_cat)
-    print(f"Category: {category}, Accuracy: {acc_cat * 100}%")
+          # Evaluation: sub-categories
+          for sub_category in data["SubCategory"].unique():
+              mask = data["SubCategory"] == sub_category
+              golds_subcat, preds_subcat = golds_np[mask], preds_np[mask]
+              acc_subcat = calculate_accuracy(golds_subcat, preds_subcat)
+              print(f"Sub-Category{sub_category}, Accuracy: {acc_subcat * 100}%")
 
-# Evaluation: sub-categories
-for sub_category in data["SubCategory"].unique():
-    mask = data["SubCategory"] == sub_category
-    golds_subcat, preds_subcat = golds_np[mask], preds_np[mask]
-    acc_subcat = calculate_accuracy(golds_subcat, preds_subcat)
-    print(f"Sub-Category{sub_category}, Accuracy: {acc_subcat * 100}%")
+              if sub_category == ": family":
+                  acc_subcat_results[my_model] = acc_subcat
 
 # Collect words from Google Analogy dataset
 SUB_CATEGORY = ": family"
@@ -356,14 +375,16 @@ SUB_CATEGORY = ": family"
 family_words = []
 family_vectors = []
 
+my_best_model = max(acc_subcat_results, key=acc_subcat_results.get)
+
 for analogy, subcategory in zip(data["Question"], data["SubCategory"]):
     if subcategory == SUB_CATEGORY:
         words = analogy.split()
 
         for word in words:
-            if word in my_model.wv.key_to_index and word not in family_words:
+            if word in my_best_model.wv.key_to_index and word not in family_words:
                 family_words.append(word)
-                family_vectors.append(my_model.wv[word])
+                family_vectors.append(my_best_model.wv[word])
 
 family_vectors = np.array(family_vectors)
 
