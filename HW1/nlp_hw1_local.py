@@ -292,7 +292,7 @@ sentences = PreProcessSentences("wiki_texts_sampled.txt")
 
 # Some hyper grid search
 param_grid = {
-    'window': [5, 8, 12],
+    'window': [5, 12],
     'min_count': [2, 8],
     'sg': [0, 1]  # CBOW vs Skip-gram
 }
