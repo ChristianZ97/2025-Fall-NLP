@@ -302,7 +302,7 @@ for window in param_grid['window']:
     for min_count in param_grid['min_count']:
         for sg in param_grid['sg']:
             print(f"Training model with window={window}, min_count={min_count}, sg={sg}\n")
-            my_model = Word2Vec(sentences=sentences, vector_size=100, window=window, min_count=min_count, workers=12, sg=sg, epochs=3, compute_loss=False)
+            my_model = Word2Vec(sentences=sentences, vector_size=100, window=window, min_count=min_count, workers=multiprocessing.cpu_count(), sg=sg, epochs=3, compute_loss=False)
             my_model.save(f"word2vec_window{window}_mincount{min_count}_sg{sg}.model")
             my_model_list.append(my_model)
 
