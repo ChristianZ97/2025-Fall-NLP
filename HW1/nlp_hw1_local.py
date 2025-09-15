@@ -265,6 +265,7 @@ from gensim.models.callbacks import CallbackAny2Vec
 from gensim.utils import simple_preprocess
 from gensim.parsing.preprocessing import remove_stopwords
 import re
+import multiprocessing
 
 # Define some utils here
 def gensim_preprocess(text):
