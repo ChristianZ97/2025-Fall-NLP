@@ -14,8 +14,6 @@ Original file is located at
 
 import pandas as pd
 
-# Download the Google Analogy dataset
-!wget http://download.tensorflow.org/data/questions-words.txt
 
 # Preprocess the dataset
 file_name = "questions-words"
@@ -186,45 +184,9 @@ plt.savefig("word_relationships.png", bbox_inches="tight")
 ### Get the latest English Wikipedia articles and do sampling.
 - Usually, we start from Wikipedia dump (https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2). However, the downloading step will take very long. Also, the cleaning step for the Wikipedia corpus ([`gensim.corpora.wikicorpus.WikiCorpus`](https://radimrehurek.com/gensim/corpora/wikicorpus.html#gensim.corpora.wikicorpus.WikiCorpus)) will take much time. Therefore, we provide cleaned files for you.
 
-# Download the split Wikipedia files
-# Each file contain 562365 lines (articles).
-!gdown --id 1jiu9E1NalT2Y8EIuWNa1xf2Tw1f1XuGd -O wiki_texts_part_0.txt.gz
-!gdown --id 1ABblLRd9HXdXvaNv8H9fFq984bhnowoG -O wiki_texts_part_1.txt.gz
-!gdown --id 1z2VFNhpPvCejTP5zyejzKj5YjI_Bn42M -O wiki_texts_part_2.txt.gz
-!gdown --id 1VKjded9BxADRhIoCzXy_W8uzVOTWIf0g -O wiki_texts_part_3.txt.gz
-!gdown --id 16mBeG26m9LzHXdPe8UrijUIc6sHxhknz -O wiki_texts_part_4.txt.gz
 
-# Download the split Wikipedia files
-# Each file contain 562365 lines (articles), except the last file.
-!gdown --id 17JFvxOH-kc-VmvGkhG7p3iSZSpsWdgJI -O wiki_texts_part_5.txt.gz
-!gdown --id 19IvB2vOJRGlrYulnTXlZECR8zT5v550P -O wiki_texts_part_6.txt.gz
-!gdown --id 1sjwO8A2SDOKruv6-8NEq7pEIuQ50ygVV -O wiki_texts_part_7.txt.gz
-!gdown --id 1s7xKWJmyk98Jbq6Fi1scrHy7fr_ellUX -O wiki_texts_part_8.txt.gz
-!gdown --id 17eQXcrvY1cfpKelLbP2BhQKrljnFNykr -O wiki_texts_part_9.txt.gz
-!gdown --id 1J5TAN6bNBiSgTIYiPwzmABvGhAF58h62 -O wiki_texts_part_10.txt.gz
 """
 
-# files too large to download
-
-from google.colab import drive
-drive.mount('/content/drive')
-!cp "/content/drive/MyDrive/wiki_texts.zip" "/content/"
-!unzip wiki_texts.zip
-
-# Extract the downloaded wiki_texts_parts files.
-!gunzip -k wiki_texts_part_*.gz
-
-# Combine the extracted wiki_texts_parts files.
-!cat wiki_texts_part_*.txt > wiki_texts_combined.txt
-
-# Check the first ten lines of the combined file
-!head -n 10 wiki_texts_combined.txt
-
-"""Please note that we used the default parameters of [`gensim.corpora.wikicorpus.WikiCorpus`](https://radimrehurek.com/gensim/corpora/wikicorpus.html#gensim.corpora.wikicorpus.WikiCorpus) for cleaning the Wiki raw file. Thus, words with one character were discarded."""
-
-# Now you need to do sampling because the corpus is too big.
-# You can further perform analysis with a greater sampling ratio.
-!rm -rf *.gz
 import random
 
 wiki_txt_path = "wiki_texts_combined.txt"
@@ -254,7 +216,6 @@ with open(wiki_txt_path, "r", encoding="utf-8") as f:
 # https://radimrehurek.com/gensim/models/word2vec.html#gensim.models.word2vec.Word2Vec
 # Hint: You should perform some pre-processing before training.
 
-!rm -rf wiki_texts_part_*
 
 import logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
