@@ -193,24 +193,26 @@ wiki_txt_path = "wiki_texts_combined.txt"
 # wiki_texts_combined.txt is a text file separated by linebreaks (\n).
 # Each row in wiki_texts_combined.txt indicates a Wikipedia article.
 
-output_path = "wiki_texts_sampled.txt" # add this
+sample_ratio_list = [0.05, 0.1, 0.2]
 
-with open(wiki_txt_path, "r", encoding="utf-8") as f:
-    with open(output_path, "w", encoding="utf-8") as output_file:
-    # TODO4: Sample `20%` Wikipedia articles
-    # Write your code here
+for sample_ratio in sample_ratio_list:
 
-        # all_lines = f.readlines() # this will fxxk the ram
+    output_path = f"wiki_texts_sampled_{sample_ratio}.txt" # add this
+    with open(wiki_txt_path, "r", encoding="utf-8") as f:
+        with open(output_path, "w", encoding="utf-8") as output_file:
+        # TODO4: Sample `20%` Wikipedia articles
+        # Write your code here
 
-        total_lines = sum(1 for _ in f)
-        sample_ratio = 0.2
-        sample_size = int(total_lines * sample_ratio)
+            # all_lines = f.readlines() # this will fxxk the ram
 
-        f.seek(0)
-        selected_lines = set(random.sample(range(total_lines), sample_size))
-        for line_num, line in enumerate(f):
-            if line_num in selected_lines:
-                output_file.write(line)
+            total_lines = sum(1 for _ in f)
+            sample_size = int(total_lines * sample_ratio)
+
+            f.seek(0)
+            selected_lines = set(random.sample(range(total_lines), sample_size))
+            for line_num, line in enumerate(f):
+                if line_num in selected_lines:
+                    output_file.write(line)
 
 # TODO5: Train your own word embeddings with the sampled articles
 # https://radimrehurek.com/gensim/models/word2vec.html#gensim.models.word2vec.Word2Vec
@@ -248,9 +250,6 @@ class PreProcessSentences:
                 if line_num % 50000 == 0:
                     print(f"Processed {line_num} lines")
 
-# Pre-proccess and Training
-sentences = PreProcessSentences("wiki_texts_sampled.txt")
-
 # Some hyper grid search
 param_grid = {
     'window': [8],
@@ -259,13 +258,15 @@ param_grid = {
 }
 my_model_list = []
 
-for window in param_grid['window']:
-    for min_count in param_grid['min_count']:
-        for sg in param_grid['sg']:
-            print(f"Training model with window={window}, min_count={min_count}, sg={sg}\n")
-            my_model = Word2Vec(sentences=sentences, vector_size=100, window=window, min_count=min_count, workers=multiprocessing.cpu_count(), sg=sg, epochs=3, compute_loss=False)
-            my_model.save(f"word2vec_window{window}_mincount{min_count}_sg{sg}.model")
-            my_model_list.append(my_model)
+for sample_ratio in sample_ratio_list:
+    sentences = PreProcessSentences(f"wiki_texts_sampled_{sample_ratio}.txt")
+    for window in param_grid['window']:
+        for min_count in param_grid['min_count']:
+            for sg in param_grid['sg']:
+                print(f"Training model with window={window}, min_count={min_count}, sg={sg}\n")
+                my_model = Word2Vec(sentences=sentences, vector_size=100, window=window, min_count=min_count, workers=multiprocessing.cpu_count(), sg=sg, epochs=3, compute_loss=False)
+                my_model.save(f"word2vec_window{window}_mincount{min_count}_sg{sg}.model")
+                my_model_list.append(my_model)
 
 print("Done!\n")
 
@@ -328,44 +329,57 @@ for sub_category in data["SubCategory"].unique():
 # Collect words from Google Analogy dataset
 SUB_CATEGORY = ": family"
 
-# TODO7: Plot t-SNE for the words in the SUB_CATEGORY `: family`
+# TODO7: Plot t-SNE for multiple models
 
-# get words and vecs
-family_words = []
-family_vectors = []
-
+# get common words
+common_words = []
 for analogy, subcategory in zip(data["Question"], data["SubCategory"]):
     if subcategory == SUB_CATEGORY:
         words = analogy.split()
-
         for word in words:
-            if word in my_model.wv.key_to_index and word not in family_words:
-                family_words.append(word)
-                family_vectors.append(my_model.wv[word])
+            if all(word in model.wv.key_to_index for model in my_model_list):
+                if word not in common_words:
+                    common_words.append(word)
 
-family_vectors = np.array(family_vectors)
+# colors for different models
+colors = ['blue', 'red', 'green']
 
-
-# tsne
-tsne = TSNE(n_components=2, perplexity=min(30, len(family_vectors)-1), random_state=42)
-vectors_2d = tsne.fit_transform(family_vectors)
-
-
-# fig
 plt.figure(figsize=(12, 8))
-scatter = plt.scatter(vectors_2d[:, 0], vectors_2d[:, 1], s=100, alpha=0.7, c='blue')
-for i, word in enumerate(family_words):
-    plt.annotate(word,
-                xy=(vectors_2d[i, 0], vectors_2d[i, 1]),
-                xytext=(5, 2),
-                textcoords='offset points',
-                fontsize=10,
-                ha='left')
 
+# plot each model
+for i, model in enumerate(my_model_list):
+    # get vectors
+    vectors = []
+    for word in common_words:
+        vectors.append(model.wv[word])
+    
+    vectors = np.array(vectors)
+    
+    # t-SNE
+    tsne = TSNE(n_components=2, perplexity=min(30, len(vectors)-1), 
+                random_state=42+i)
+    vectors_2d = tsne.fit_transform(vectors)
+    
+    # plot
+    plt.scatter(vectors_2d[:, 0], vectors_2d[:, 1], 
+                c=colors[i], s=100, alpha=0.7, 
+                label=f'Model {i+1}')
+
+# add word labels (only for first model)
+model_vectors = np.array([my_model_list[0].wv[word] for word in common_words])
+tsne = TSNE(n_components=2, perplexity=min(30, len(model_vectors)-1), random_state=42)
+vectors_2d = tsne.fit_transform(model_vectors)
+
+for i, word in enumerate(common_words):
+    plt.annotate(word, (vectors_2d[i, 0], vectors_2d[i, 1]), 
+                xytext=(5, 2), textcoords='offset points', fontsize=9)
+
+plt.legend()
 plt.grid(True, alpha=0.3)
+plt.title("Word Relationships - Multiple Models")
 plt.tight_layout()
-
-
-plt.title("Word Relationships from Google Analogy Task")
 plt.show()
-plt.savefig("word_relationships_word2vec.png", bbox_inches="tight")
+plt.savefig("word_relationships_comparison.png", bbox_inches="tight")
+
+
+
