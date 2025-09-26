@@ -52,7 +52,7 @@ from gensim.models import Word2Vec
 from gensim.parsing.preprocessing import remove_stopwords
 from gensim.utils import simple_preprocess
 
-nltk.download('punkt')
+nltk.download('punkt_tab')
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 class PreProcess:
