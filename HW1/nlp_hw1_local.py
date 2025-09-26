@@ -151,7 +151,7 @@ for my_model in my_model_list:
             preds.append(None)
 
     def calculate_accuracy(gold: np.ndarray, pred: np.ndarray) -> float:
-    return np.mean(gold == pred)
+        return np.mean(gold == pred)
 
     golds_np, preds_np = np.array(golds), np.array(preds)
     data = pd.read_csv("questions-words.csv")
