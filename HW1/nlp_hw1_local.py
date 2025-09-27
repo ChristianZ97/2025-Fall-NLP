@@ -70,7 +70,7 @@ class PreProcess:
                         if len(sentence) >= 3:
                             yield sentence
 
-                if line_num % 10000 == 0:
+                if line_num % 100000 == 0:
                     print(f"Processed {line_num} articles")
 
     def sent_preproc(self, text):
@@ -119,6 +119,8 @@ for sample_ratio in sample_ratio_list:
 
 print(f"\n Training completed! Total models: {len(my_model_list)}")
 ######################################################################################################
+data = pd.read_csv("questions-words.csv")
+
 
 
 for my_model in my_model_list:
@@ -154,7 +156,6 @@ for my_model in my_model_list:
         return np.mean(gold == pred)
 
     golds_np, preds_np = np.array(golds), np.array(preds)
-    data = pd.read_csv("questions-words.csv")
 
     for category in data["Category"].unique():
         mask = data["Category"] == category
