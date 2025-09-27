@@ -22,7 +22,7 @@ wiki_txt_path = "wiki_texts_combined.txt"
 
 sample_ratio_list = [0.05, 0.1, 0.2]
 for sample_ratio in sample_ratio_list:
-    output_path = f"wiki_texts_sampled_{sample_ratio * 100}%.txt"
+    output_path = f"wiki_texts_sampled_{int(sample_ratio * 100)}%.txt"
 
     with open(wiki_txt_path, "r", encoding="utf-8") as f:
         with open(output_path, "w", encoding="utf-8") as output_file:
@@ -95,10 +95,10 @@ class PreProcess:
 my_model_list = []
 for sample_ratio in sample_ratio_list:
     print(f"\n{'='*60}")
-    print(f"Training Word2Vec model with {sample_ratio * 100}% data sample")
+    print(f"Training Word2Vec model with {int(sample_ratio * 100)}% data sample")
     print(f"{'='*60}")
     
-    sentences = PreProcess(f"wiki_texts_sampled_{sample_ratio * 100}%.txt")
+    sentences = PreProcess(f"wiki_texts_sampled_{int(sample_ratio * 100)}%.txt")
     
     my_model = Word2Vec(
         sentences=sentences, 
