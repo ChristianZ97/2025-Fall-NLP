@@ -70,7 +70,7 @@ class PreProcess:
                         if len(sentence) >= 3:
                             yield sentence
 
-                if line_num % 100000 == 0:
+                if line_num % 1000000 == 0:
                     print(f"Processed {line_num} articles")
 
     def sent_preproc(self, text):
@@ -102,13 +102,14 @@ for sample_ratio in sample_ratio_list:
     
     my_model = Word2Vec(
         sentences=sentences, 
-        vector_size=100, 
-        window=8, 
-        min_count=5, 
+        vector_size=300,      # 增加維度以捕捉更複雜的語意
+        window=8,             # 維持較大的上下文窗口
+        min_count=5,          # 維持標準的詞頻過濾
         workers=multiprocessing.cpu_count(), 
-        sg=1, 
-        epochs=3, 
-        compute_loss=False
+        sg=1,                 # 堅持使用 Skip-gram 模型
+        epochs=15,            # 大幅增加訓練迭代次數
+        negative=10,          # 增加負採樣的樣本數
+        compute_loss=True     # 開啟損失計算以監控訓練過程
     )
     
     model_filename = f"word2vec_{sample_ratio}.model"
@@ -117,7 +118,7 @@ for sample_ratio in sample_ratio_list:
     
     my_model_list.append(my_model)
 
-print(f"\n Training completed! Total models: {len(my_model_list)}")
+print(f"\n Training completed! Total models: {len(my_model_list)}\n\n")
 ######################################################################################################
 data = pd.read_csv("questions-words.csv")
 
