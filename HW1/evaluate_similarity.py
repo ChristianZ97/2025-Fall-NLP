@@ -1,34 +1,48 @@
-# evaluate_similarity.py
+# evaluate_similarity_with_glove.py
 
 import glob
+import gensim.downloader
 from gensim.models import Word2Vec
 
 # --- 詞彙選擇 ---
-# 1. 通用詞彙 (預期在 PubMed 中不存在或關聯性弱)
-# 2. 歧義詞 (在不同領域有不同意義)
-# 3. 專業詞彙 (預期在 PubMed 中有更精確的關聯)
 target_words = ['king', 'cell', 'cancer', 'science']
 
-# 自動尋找目錄下所有的 .model 檔案
-model_files = glob.glob('*.model')
+# --- 模型清單 ---
+# 手動加入 GloVe 模型
+model_collection = {'glove-wiki-gigaword-100': None}
 
-print(f"Found {len(model_files)} models to evaluate: {model_files}\n")
+# 自動尋找本地的 .model 檔案
+local_model_files = glob.glob('*.model')
+for model_path in sorted(local_model_files):
+    model_collection[model_path] = None
 
-# 遍歷每個模型
-for model_path in sorted(model_files):
+print(f"Found {len(local_model_files)} local models and 1 GloVe model to evaluate.\n")
+
+# --- 遍歷所有模型進行評估 ---
+for model_name in model_collection:
     print(f"{'='*60}")
-    print(f"Loading model: {model_path}")
+    print(f"Loading model: {model_name}")
     print(f"{'='*60}")
     
-    # 載入模型
-    model = Word2Vec.load(model_path)
+    try:
+        # 根據模型名稱決定載入方式
+        if model_name.startswith('glove'):
+            # 從 gensim API 下載並載入 GloVe
+            model_wv = gensim.downloader.load(model_name)
+        else:
+            # 載入本地 Word2Vec 模型
+            model = Word2Vec.load(model_name)
+            model_wv = model.wv
+    except Exception as e:
+        print(f"  > Failed to load model {model_name}. Error: {e}")
+        continue
     
     # 對每個目標詞彙進行分析
     for word in target_words:
         print(f"\n--- Most similar words for '{word}' ---")
         try:
             # 獲取最相似的5個詞
-            similar_words = model.wv.most_similar(word, topn=5)
+            similar_words = model_wv.most_similar(word, topn=5)
             
             # 格式化輸出
             for sim_word, score in similar_words:
