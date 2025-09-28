@@ -10,14 +10,7 @@ import re
 
 
 
-# 讀取下載的 CSV 檔案
-df = pd.read_csv('mtsamples.csv')
-
-# 提取 'transcription' 欄位，並去除空值
-# 將每一篇轉錄文本作為一行，寫入新的 .txt 檔案
-df['transcription'].dropna().to_csv('medical_texts_combined.txt', header=False, index=False)
-
-print("Corpus 'medical_texts_combined.txt' has been created successfully!")
+pubmed_txt_path = "pubmed_texts_combined.txt"
 
 
 # TODO5: Train your own word embeddings with the sampled articles
@@ -70,7 +63,7 @@ class PreProcess:
         
         return processed_sentences
 
-sentences = PreProcess(f"medical_texts_combined.txt")
+sentences = PreProcess(pubmed_txt_path)
 
 my_model = Word2Vec(
     sentences=sentences, 
@@ -84,7 +77,7 @@ my_model = Word2Vec(
     compute_loss=False
 )
 
-model_filename = f"word2vec_medical.model"
+model_filename = f"word2vec_pubmed.model"
 my_model.save(model_filename)
 print(f"Model saved as: {model_filename}")
 print(f"\n Training completed!\n\n")
