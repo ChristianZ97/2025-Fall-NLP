@@ -87,9 +87,6 @@ my_model = Word2Vec(
 model_filename = f"word2vec_medical.model"
 my_model.save(model_filename)
 print(f"Model saved as: {model_filename}")
-
-my_model_list.append(my_model)
-
 print(f"\n Training completed!\n\n")
 ######################################################################################################
 data = pd.read_csv("questions-words.csv")
