@@ -20,25 +20,22 @@ def evaluate_model(model_path: str, questions_df: pd.DataFrame):
         word_a, word_b, word_c, word_d = analogy.split()
         golds.append(word_d)
         
-        # Check if all words are in the vocabulary
         vocab = model.wv.key_to_index
         if not all(word in vocab for word in [word_a, word_b, word_c]):
-            preds.append(None) # Append None if any word is out of vocabulary
+            preds.append(None)
             continue
 
         try:
             res_seq = model.wv.most_similar(positive=[word_b, word_c], negative=[word_a], topn=1)
             pred = res_seq[0][0]
             preds.append(pred)
-        except:
-            preds.append(None) # Handle other potential errors during most_similar
+        except Exception:
+            preds.append(None)
 
-    # This part is kept similar to your original implementation
     accuracies = {}
     golds_np, preds_np = np.array(golds), np.array(preds)
 
     def calculate_accuracy(gold: np.ndarray, pred: np.ndarray) -> float:
-        # Ensure that we don't divide by zero if a category has no valid predictions
         valid_indices = pred != None
         if np.sum(valid_indices) == 0:
             return 0.0
@@ -65,17 +62,23 @@ def main():
     """
     # --- Configuration ---
     questions_file = "questions-words.csv"
-    model_pattern = r"word2vec_(\d+\.?\d*)\.model" # Regex to find model files and extract ratio
+    model_pattern = r"word2vec_(\d+\.?\d*)\.model"
     
-    # --- Find Models ---
+    # --- Find Models (Corrected Logic) ---
     model_paths = {}
-    for filename in sorted(os.listdir('.')):
-        match = re.match(model_pattern, filename)
-        if match:
-            # Check if it's a file and not an associated numpy array
-            if os.path.isfile(filename):
-                ratio = float(match.group(1))
-                model_paths[ratio] = filename
+    # First, get a list of all files in the directory
+    all_files = sorted(os.listdir('.'))
+    
+    # Iterate through files and find the main model files
+    for filename in all_files:
+        # We are looking for files that END with ".model", not ones that have ".model" in the middle
+        if filename.endswith(".model"):
+            match = re.match(model_pattern, filename)
+            if match:
+                # Ensure it's a file and not a directory
+                if os.path.isfile(filename):
+                    ratio = float(match.group(1))
+                    model_paths[ratio] = filename
     
     if not model_paths:
         print("No models found matching the pattern 'word2vec_*.model'. Exiting.")
@@ -87,24 +90,21 @@ def main():
     questions_df = pd.read_csv(questions_file)
     all_results = {}
     for ratio, path in sorted(model_paths.items()):
-        all_results[f"{ratio*100}% Sample"] = evaluate_model(path, questions_df)
+        all_results[f"{ratio*100:.1f}% Sample"] = evaluate_model(path, questions_df)
 
     # --- Print Markdown Table ---
     print("\n\n--- Final Results Table ---")
     
-    # Define which categories to display in the table
     categories_to_show = [
         "Semantic", "Syntactic", "family", "capital-world", 
         "gram3-comparative", "gram7-past-tense", "gram8-plural"
     ]
     
-    # Header
     header = "| Category / Sub-Category     | " + " | ".join(all_results.keys()) + " |"
     separator = "| --------------------------- |" + " :--------: |" * len(all_results)
     print(header)
     print(separator)
 
-    # Body
     for category in categories_to_show:
         row = f"| {category.ljust(27)} |"
         for model_name in all_results.keys():
@@ -114,4 +114,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
