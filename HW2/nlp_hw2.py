@@ -386,7 +386,7 @@ for epoch in range(1, epochs+1):
             for j in range(batch_x.size(0)):
                 input_ids = batch_x[j][:batch_x_lens[j]]
                 input_str = ''.join([id_to_char[id.item()] for id in input_ids]).split('=')[0] + '='
-                predictions = ''.join(model.generator(input_str, max_len=50))
+                predictions = ''.join(model.generator(input_str, max_len=10))
 
                 target_ids = batch_y[j][:batch_y_lens[j]]
                 target_str = ''.join([id_to_char[id.item()] for id in target_ids]).split('=')[-1]
@@ -396,3 +396,5 @@ for epoch in range(1, epochs+1):
 
     print(matched/total)
     model.train()
+
+    
