@@ -24,7 +24,6 @@ from tqdm import tqdm
 from copy import deepcopy
 
 SEED = int(time.time())
-print(f"Using random seed: {SEED}")
 
 # Data path configuration
 data_path = './'
@@ -105,27 +104,19 @@ df_eval = data_preprocess(df_eval, char_to_id)
 
 # Hyperparameter configuration
 default_config = {
-    'batch_size': 64,
-    'embed_dim': 256,
-    'hidden_dim': 256,
     'lr': 0.001,
-    'grad_clip': 1,
     'weight_decay': 0.01,
-    'label_smoothing': 0.0,
     'rnn_type': 'LSTM',  # Options: 'LSTM', 'GRU', 'RNN'
 }
 epochs = 5
+batch_size = 128
+grad_clip = 1
+embed_dim = 256
+hidden_dim = 256
 
 # Initialize wandb
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
 config = wandb.config
-
-# Extract hyperparameters from config
-batch_size = config.batch_size
-embed_dim = config.embed_dim
-hidden_dim = config.hidden_dim
-lr = config.lr
-grad_clip = config.grad_clip
 
 # Dataset class
 class Dataset(torch.utils.data.Dataset):
@@ -266,16 +257,17 @@ torch.manual_seed(SEED)
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Using device: {device}")
 
 # Initialize model
 model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=config.rnn_type)
 
 # Loss function and optimizer
-criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id['<pad>'], label_smoothing=config.label_smoothing)
+criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id['<pad>'])
 optimizer = torch.optim.AdamW(params=model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
 
 # Training Loop
+print(f"\n\nUsing device: {device}")
+print(f"Using random seed: {SEED}\n\n")
 model = model.to(device)
 model.train()
 i = 0
@@ -327,7 +319,7 @@ for epoch in range(1, epochs+1):
 
     # Random sampling for unbiased evaluation
     df_eval_sample = df_eval.sample(n=eval_limit, random_state=SEED)  # Fixed seed for reproducibility
-    bar_eval = tqdm(df_eval_sample.iterrows(), total=eval_limit, desc=f"Validation epoch {epoch}")
+    bar_eval = tqdm(df_eval_sample.iterrows(), desc=f"Validation epoch {epoch}")
 
     with torch.no_grad():
         for _, row in bar_eval:
@@ -338,7 +330,7 @@ for epoch in range(1, epochs+1):
             batch_x = batch_x.split('=')[0] + '='
             
             # Generate prediction
-            prediction = ''.join(model.generator(batch_x, max_len=20))
+            prediction = ''.join(model.generator(batch_x, max_len=50))
             prediction = prediction.split('=')[-1].replace('<eos>', '')
 
             # Check correctness
