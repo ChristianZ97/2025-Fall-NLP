@@ -7,20 +7,8 @@ Original file is located at
     https://colab.research.google.com/drive/1J4gJhh5NTFqvdcCNzHGepqqE9C_7qxj7
 """
 
-#from google.colab import drive
-#drive.mount('/content/gdrive')
-
-"""# LSTM-arithmetic
-
-## Dataset
-- [Arithmetic dataset](https://drive.google.com/file/d/1cMuL3hF9jefka9RyF4gEBIGGeFGZYHE-/view?usp=sharing)
-"""
 import wandb
-
-#!pip install seaborn
-#!pip install opencc
-#!pip install -U scikit-learn
-
+import time
 import numpy as np
 import pandas as pd
 import torch
@@ -32,41 +20,31 @@ import seaborn as sns
 import opencc
 import os
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
+from copy import deepcopy
 
-# data_path = './data'
-#data_path = '/content/gdrive/MyDrive/Colab Notebooks/NLP/HW2'
+SEED = int(time.time())
+print(f"Using random seed: {SEED}")
+
+# Data path configuration
 data_path = './'
 
+# Load datasets
 df_train = pd.read_csv(os.path.join(data_path, 'arithmetic_train.csv'))
 df_eval = pd.read_csv(os.path.join(data_path, 'arithmetic_eval.csv'))
-df_train.head()
 
-# transform the input data to string
+# Transform the input data to string
 df_train['tgt'] = df_train['tgt'].apply(lambda x: str(x))
 df_train['src'] = df_train['src'].add(df_train['tgt'])
 df_train['len'] = df_train['src'].apply(lambda x: len(x))
 
 df_eval['tgt'] = df_eval['tgt'].apply(lambda x: str(x))
 
-"""# Build Dictionary
- - The model cannot perform calculations directly with plain text.
- - Convert all text (numbers/symbols) into numerical representations.
- - Special tokens
-    - '&lt;pad&gt;'
-        - Each sentence within a batch may have different lengths.
-        - The length is padded with '&lt;pad&gt;' to match the longest sentence in the batch.
-    - '&lt;eos&gt;'
-        - Specifies the end of the generated sequence.
-        - Without '&lt;eos&gt;', the model will not know when to stop generating.
-"""
-
+# Build Dictionary
+# The model cannot perform calculations directly with plain text.
+# Convert all text (numbers/symbols) into numerical representations.
 char_to_id = {}
 id_to_char = {}
-
-# write your code here
-# Build a dictionary and give every token in the train dataset an id
-# The dictionary should contain <eos> and <pad>
-# char_to_id is to conver charactors to ids, while id_to_char is the opposite
 
 all_chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '*', '(', ')', '=']
 special_tokens = ['<pad>', '<eos>']
@@ -76,22 +54,15 @@ char_to_id = {char: idx for idx, char in enumerate(all_tokens)}
 id_to_char = {idx: char for idx, char in enumerate(all_tokens)}
 
 vocab_size = len(char_to_id)
-print('Vocab size{}'.format(vocab_size))
+print('Vocab size: {}'.format(vocab_size))
 
-"""# Data Preprocessing
- - The data is processed into the format required for the model's input and output. (End with \\<eos\\> token)
-
-"""
-
-# Write your code here
-
+# Data Preprocessing
 def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
-
     df = df.copy()
-
     char_id_list = []
     label_id_list = []
     src_len_list = []
+    
     for sent in df['src']:
         sent_len = len(sent)
         sent = sent.split('=')
@@ -100,24 +71,28 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
 
         char_id = []
         label_id = []
+        
+        # Input part before '='
         for char in sent_train:
             char_id.append(char_to_id[char])
             label_id.append(char_to_id['<pad>'])
 
+        # '=' symbol
         char_id.append(char_to_id['='])
         label_id.append(char_to_id['='])
 
+        # Answer part after '='
         for char in sent_tgt:
             char_id.append(char_to_id[char])
             label_id.append(char_to_id[char])
 
+        # End of sequence token
         char_id.append(char_to_id['<eos>'])
         label_id.append(char_to_id['<eos>'])
 
         src_len_list.append(sent_len)
         char_id_list.append(char_id)
         label_id_list.append(label_id)
-
 
     df["len"] = src_len_list
     df["char_id_list"] = char_id_list
@@ -128,92 +103,51 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
 df_train = data_preprocess(df_train, char_to_id)
 df_eval = data_preprocess(df_eval, char_to_id)
 
-df_train.head()
-#df_eval.head()
-
-
-#df.head()
-
-"""# Hyper Parameters
-
-|Hyperparameter|Meaning|Value|
-|-|-|-|
-|`batch_size`|Number of data samples in a single batch|64|
-|`epochs`|Total number of epochs to train|10|
-|`embed_dim`|Dimension of the word embeddings|256|
-|`hidden_dim`|Dimension of the hidden state in each timestep of the LSTM|256|
-|`lr`|Learning Rate|0.001|
-|`grad_clip`|To prevent gradient explosion in RNNs, restrict the gradient range|1|
-"""
-
-"""
-batch_size = 64
-epochs = 2
-embed_dim = 256
-hidden_dim = 256
-lr = 0.001
-grad_clip = 1
-"""
-
+# Hyperparameter configuration
 default_config = {
     'batch_size': 64,
-    'epochs': 2,
     'embed_dim': 256,
     'hidden_dim': 256,
     'lr': 0.001,
     'grad_clip': 1,
     'weight_decay': 0.01,
     'label_smoothing': 0.0,
+    'rnn_type': 'LSTM',  # Options: 'LSTM', 'GRU', 'RNN'
 }
+epochs = 5
 
-
+# Initialize wandb
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
 config = wandb.config
 
+# Extract hyperparameters from config
 batch_size = config.batch_size
-epochs = config.epochs
 embed_dim = config.embed_dim
 hidden_dim = config.hidden_dim
 lr = config.lr
 grad_clip = config.grad_clip
 
-
-"""# Data Batching
-- Use `torch.utils.data.Dataset` to create a data generation tool called  `dataset`.
-- The, use `torch.utils.data.DataLoader` to randomly sample from the `dataset` and group the samples into batches.
-
-- Example: 1+2-3=0
-    - Model input: 1 + 2 - 3 = 0
-    - Model output: / / / / / 0 &lt;eos&gt;  (the '/' can be replaced with &lt;pad&gt;)
-    - The key for the model's output is that the model does not need to predict the next character of the previous part. What matters is that once the model sees '=', it should start generating the answer, which is '0'. After generating the answer, it should also generate&lt;eos&gt;
-"""
-
-from collections.abc import Sequence
+# Dataset class
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, sequences):
         self.sequences = sequences
 
     def __len__(self):
-        # return the amount of data
-        # return # Write your code here
         return len(self.sequences)
 
     def __getitem__(self, index):
-        # Extract the input data x and the ground truth y from the data
-        # x = # Write your code here
-        # y = # Write your code here
         x = self.sequences.iloc[index]['char_id_list']
         y = self.sequences.iloc[index]['label_id_list']
         return x, y
 
-# collate function, used to build dataloader
+# Collate function for DataLoader
 def collate_fn(batch):
     batch_x = [torch.tensor(data[0]) for data in batch]
     batch_y = [torch.tensor(data[1]) for data in batch]
     batch_x_lens = torch.LongTensor([len(x) for x in batch_x])
     batch_y_lens = torch.LongTensor([len(y) for y in batch_y])
 
-    # Pad the input sequence
+    # Pad sequences to the same length
     pad_batch_x = torch.nn.utils.rnn.pad_sequence(batch_x,
                                                   batch_first=True,
                                                   padding_value=char_to_id['<pad>'])
@@ -224,43 +158,41 @@ def collate_fn(batch):
 
     return pad_batch_x, pad_batch_y, batch_x_lens, batch_y_lens
 
+# Create DataLoader
 ds_train = Dataset(df_train[['char_id_list', 'label_id_list']])
-
-# Build dataloader of train set and eval set, collate_fn is the collate function
-# dl_train = # Write your code here
 dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-"""# Model Design
-
-## Execution Flow
-1. Convert all characters in the sentence into embeddings.
-2. Pass the embeddings through an LSTM sequentially.
-3. The output of the LSTM is passed into another LSTM, and additional layers can be added.
-4. The output from all time steps of the final LSTM is passed through a Fully Connected layer.
-5. The character corresponding to the maximum value across all output dimensions is selected as the next character.
-
-## Loss Function
-Since this is a classification task, Cross Entropy is used as the loss function.
-
-## Gradient Update
-Adam algorithm is used for gradient updates.
-"""
-
+# Model Definition
 class CharRNN(torch.nn.Module):
-    def __init__(self, vocab_size, embed_dim, hidden_dim):
+    def __init__(self, vocab_size, embed_dim, hidden_dim, rnn_type='LSTM'):
         super(CharRNN, self).__init__()
 
         self.embedding = torch.nn.Embedding(num_embeddings=vocab_size,
                                             embedding_dim=embed_dim,
                                             padding_idx=char_to_id['<pad>'])
 
-        self.rnn_layer1 = torch.nn.LSTM(input_size=embed_dim,
-                                        hidden_size=hidden_dim,
-                                        batch_first=True)
-
-        self.rnn_layer2 = torch.nn.LSTM(input_size=hidden_dim,
-                                        hidden_size=hidden_dim,
-                                        batch_first=True)
+        # Select RNN architecture
+        if rnn_type == 'LSTM':
+            self.rnn_layer1 = torch.nn.LSTM(input_size=embed_dim,
+                                            hidden_size=hidden_dim,
+                                            batch_first=True)
+            self.rnn_layer2 = torch.nn.LSTM(input_size=hidden_dim,
+                                            hidden_size=hidden_dim,
+                                            batch_first=True)
+        elif rnn_type == 'GRU':
+            self.rnn_layer1 = torch.nn.GRU(input_size=embed_dim,
+                                           hidden_size=hidden_dim,
+                                           batch_first=True)
+            self.rnn_layer2 = torch.nn.GRU(input_size=hidden_dim,
+                                           hidden_size=hidden_dim,
+                                           batch_first=True)
+        else:  # RNN
+            self.rnn_layer1 = torch.nn.RNN(input_size=embed_dim,
+                                           hidden_size=hidden_dim,
+                                           batch_first=True)
+            self.rnn_layer2 = torch.nn.RNN(input_size=hidden_dim,
+                                           hidden_size=hidden_dim,
+                                           batch_first=True)
 
         self.linear = torch.nn.Sequential(torch.nn.Linear(in_features=hidden_dim,
                                                           out_features=hidden_dim),
@@ -271,47 +203,48 @@ class CharRNN(torch.nn.Module):
     def forward(self, batch_x, batch_x_lens):
         return self.encoder(batch_x, batch_x_lens)
 
-    # The forward pass of the model
     def encoder(self, batch_x, batch_x_lens):
+        # Embedding layer
         batch_x = self.embedding(batch_x)
 
-        batch_x = torch.nn.utils.rnn.pack_padded_sequence(batch_x,
-                                                          batch_x_lens,
-                                                          batch_first=True,
-                                                          enforce_sorted=False)
+        # Pack padded sequence for efficient RNN processing
+        batch_x = torch.nn.utils.rnn.pack_padded_sequence(batch_x, batch_x_lens, batch_first=True, enforce_sorted=False)
 
+        # RNN layers
         batch_x, _ = self.rnn_layer1(batch_x)
         batch_x, _ = self.rnn_layer2(batch_x)
 
-        batch_x, _ = torch.nn.utils.rnn.pad_packed_sequence(batch_x,
-                                                            batch_first=True)
+        # Unpack sequence
+        batch_x, _ = torch.nn.utils.rnn.pad_packed_sequence(batch_x, batch_first=True)
 
+        # Linear output layer
         batch_x = self.linear(batch_x)
 
         return batch_x
 
     def generator(self, start_char, max_len=200):
-
+        """
+        Autoregressive generation function
+        """
         char_list = [char_to_id[c] for c in start_char]
-
         next_char = None
 
+        device = next(self.parameters()).device
         while len(char_list) < max_len:
-            # Write your code here
-            # Pack the char_list to tensor
-            # Input the tensor to the embedding layer, LSTM layers, linear respectively
-            # y = # Obtain the next token prediction y
-
-            # next_char = # Use argmax function to get the next token prediction
-
-            batch_x = torch.tensor(char_list).unsqueeze(0).to(next(self.parameters()).device) # [1, seq_len]
+            # Prepare input tensor
+            batch_x = torch.tensor(char_list).unsqueeze(0).to(device)
             batch_x_len = torch.tensor([len(char_list)])
 
-            batch_x = batch_x.to(next(self.parameters()).device)
-            y = self.forward(batch_x, batch_x_len) # [1, seq_len, vocab_size]
-            logits = y[0, -1] # [vocab_size]
+            # Forward pass
+            y = self.forward(batch_x, batch_x_len)
+            
+            # Get logits for the last position
+            logits = y[0, -1]
+            
+            # Predict next character
             next_char = torch.argmax(logits, dim=-1).item()
 
+            # Check for end of sequence
             if next_char == char_to_id['<eos>']:
                 break
 
@@ -319,99 +252,124 @@ class CharRNN(torch.nn.Module):
 
         return [id_to_char[ch_id] for ch_id in char_list]
 
-torch.manual_seed(2)
+# Set random seed for reproducibility
+torch.manual_seed(SEED)
 
-
-# device = # Write your code here. Specify a device (cuda or cpu)
+# Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
 
-model = CharRNN(vocab_size,
-                embed_dim,
-                hidden_dim)
+# Initialize model
+model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=config.rnn_type)
 
-# criterion = # Write your code here. Cross-entropy loss function. The loss function should ignore <pad>
-# optimizer = # Write your code here. Use Adam or AdamW for Optimizer
-#criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id['<pad>'], label_smoothing=0.0)
-#optimizer = torch.optim.AdamW(params=model.parameters(), lr=lr, weight_decay=0.01)
+# Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id['<pad>'], label_smoothing=config.label_smoothing)
 optimizer = torch.optim.AdamW(params=model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
 
-"""# Training
-1. The outer `for` loop controls the `epoch`
-    1. The inner `for` loop uses `data_loader` to retrieve batches.
-        1. Pass the batch to the `model` for training.
-        2. Compare the predicted results `batch_pred_y` with the true labels `batch_y` using Cross Entropy to calculate the loss `loss`
-        3. Use `loss.backward` to automatically compute the gradients.
-        4. Use `torch.nn.utils.clip_grad_value_` to limit the gradient values between `-grad_clip` &lt; and &lt; `grad_clip`.
-        5. Use `optimizer.step()` to update the model (backpropagation).
-2.  After every `1000` batches, output the current loss to monitor whether it is converging.
-"""
-
-from tqdm import tqdm
-from copy import deepcopy
+# Training Loop
 model = model.to(device)
 model.train()
 i = 0
+best_accuracy = 0.0
+
 for epoch in range(1, epochs+1):
-    # The process bar
+    # Training phase
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")
     for batch_x, batch_y, batch_x_lens, batch_y_lens in bar:
-        # Write your code here
-        # Clear the gradient
+        # Clear gradients
         optimizer.zero_grad()
 
+        # Forward pass
         batch_pred_y = model(batch_x.to(device), batch_x_lens)
 
-        # Write your code here
-        # Input the prediction and ground truths to loss function
-        # Back propagation
-
-        loss = criterion(batch_pred_y.view(-1, vocab_size), batch_y.view(-1).to(device)) # Teacher Forcing
+        # Compute loss (Teacher Forcing)
+        loss = criterion(batch_pred_y.view(-1, vocab_size), batch_y.view(-1).to(device))
+        
+        # Backward pass
         loss.backward()
 
+        # Gradient clipping
+        torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip)
 
-        torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip) # gradient clipping
-
-        # Write your code here
-        # Optimize parameters in the model
-
+        # Update parameters
         optimizer.step()
 
-        i+=1
-        if i%50==0:
-            bar.set_postfix(loss = loss.item())
-            wandb.log({"train_loss": loss.item(), "step": i})
+        i += 1
+        if i % 50 == 0:
+            bar.set_postfix(loss=loss.item())
+            wandb.log({
+                "train_loss": loss.item(),
+                "step": i,
+                "epoch": epoch,
+                "learning_rate": optimizer.param_groups[0]['lr']
+            })
 
-    # Evaluate your model
+    # Evaluation phase
     model.eval()
     matched = 0
     total = 0
-    print(f"Eval dataset size: {len(df_eval)}")
-    bar_eval = tqdm(df_eval.iterrows(), total=len(df_eval), desc=f"Validation epoch {epoch}")
+    examples = []  # Store prediction examples
+    
+    # Limit evaluation for faster hyperparameter search
+    eval_limit = min(1000, len(df_eval))  # Evaluate at most 1000 samples
+
+    # Random sampling for unbiased evaluation
+    df_eval_sample = df_eval.sample(n=eval_limit, random_state=SEED)  # Fixed seed for reproducibility
+    bar_eval = tqdm(df_eval_sample.iterrows(), total=eval_limit, desc=f"Validation epoch {epoch}")
+
     with torch.no_grad():
         for _, row in bar_eval:
             batch_x = row['src']
             batch_y = row['tgt']
 
-            # prediction = # An example of using generator: model.generator('1+1=')
-
-            # Write your code here. Input the batch_x to the model and generate the predictions
-            # Write your code here.
-            # Check whether the prediction match the ground truths
-            # Compute exact match (EM) on the eval dataset
-            # EM = correct/total
-
+            # Extract question part (before '=')
             batch_x = batch_x.split('=')[0] + '='
+            
+            # Generate prediction
             prediction = ''.join(model.generator(batch_x, max_len=20))
             prediction = prediction.split('=')[-1].replace('<eos>', '')
 
-            matched += int(prediction == batch_y)
+            # Check correctness
+            is_correct = int(prediction == batch_y)
+            matched += is_correct
             total += 1
 
-    print(matched/total)
-    wandb.log({"val_accuracy": matched/total, "epoch": epoch})
+            # Store first 10 examples for logging
+            if total <= 10:
+                examples.append({
+                    'input': batch_x,
+                    'prediction': prediction,
+                    'ground_truth': batch_y,
+                    'correct': is_correct
+                })
 
+    # Calculate accuracy
+    accuracy = matched / total
+    print(f"Epoch {epoch} - Validation Accuracy: {accuracy:.4f} ({matched}/{total})")
+    
+    # Log to wandb
+    wandb.log({
+        "val_accuracy": accuracy,
+        "val_correct": matched,
+        "val_total": total,
+        "epoch": epoch,
+        "examples": wandb.Table(dataframe=pd.DataFrame(examples))
+    })
+    
+    # Track best accuracy
+    if accuracy > best_accuracy:
+        best_accuracy = accuracy
+    
+    # Set model back to training mode
+    model.train()
+
+# Log final summary
+wandb.run.summary.update({
+    "best_val_accuracy": best_accuracy,
+    "total_params": sum(p.numel() for p in model.parameters()),
+    "trainable_params": sum(p.numel() for p in model.parameters() if p.requires_grad)
+})
 
 wandb.finish()
 
-    
+print(f"\nTraining completed. Best validation accuracy: {best_accuracy:.4f}")
