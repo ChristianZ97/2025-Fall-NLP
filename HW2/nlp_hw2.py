@@ -373,11 +373,11 @@ for epoch in range(1, epochs + 1):
 
             # Generate prediction
             prediction = "".join(model.generator(batch_x, max_len=50))
-            if total <= 10:
-                print(f"\nRaw prediction: {prediction}")
             prediction = prediction.split("=")[-1].replace("<eos>", "")
-            if total <= 10:
-                print(f"Processed: '{prediction}' vs GT: '{batch_y}'\n")
+            if total < 3:
+                print(
+                    f"[{total}] Input: {batch_x:<20} | Pred: {prediction_clean:>8} | GT: {batch_y:>8} | {'✓' if prediction_clean == batch_y else '✗'}"
+                )
 
             # Check correctness
             is_correct = int(prediction == batch_y)
