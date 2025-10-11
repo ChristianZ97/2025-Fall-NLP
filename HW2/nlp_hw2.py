@@ -331,6 +331,13 @@ for epoch in range(1, epochs + 1):
         loss.backward()
 
         # Gradient clipping
+
+        raw_grad_norm = 0
+        for p in model.parameters():
+            if p.grad is not None:
+                param_norm = p.grad.data.norm(2)
+                raw_grad_norm += param_norm.item() ** 2
+        raw_grad_norm = raw_grad_norm**0.5
         torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip)
 
         # Update parameters
@@ -342,9 +349,8 @@ for epoch in range(1, epochs + 1):
             wandb.log(
                 {
                     "train_loss": loss.item(),
-                    "step": i,
-                    "epoch": epoch,
-                    "learning_rate": optimizer.param_groups[0]["lr"],
+                    "raw_grad_norm": raw_grad_norm,
+                    "batch_perplexity": torch.exp(loss).item(),
                 }
             )
 
