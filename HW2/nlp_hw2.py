@@ -338,7 +338,7 @@ for epoch in range(1, epochs+1):
         # Input the prediction and ground truths to loss function
         # Back propagation
 
-        loss = criterion(batch_pred_y.view(-1, vocab_size), batch_y.view(-1)) # Teacher Forcing
+        loss = criterion(batch_pred_y.view(-1, vocab_size), batch_y.view(-1).to(device)) # Teacher Forcing
         loss.backward()
 
 
