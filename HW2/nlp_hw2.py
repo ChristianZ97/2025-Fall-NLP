@@ -38,6 +38,8 @@ df_train['src'] = df_train['src'].add(df_train['tgt'])
 df_train['len'] = df_train['src'].apply(lambda x: len(x))
 
 df_eval['tgt'] = df_eval['tgt'].apply(lambda x: str(x))
+df_eval['src'] = df_eval['src'].add(df_eval['tgt'])
+df_eval['len'] = df_eval['src'].apply(lambda x: len(x))
 
 # Build Dictionary
 # The model cannot perform calculations directly with plain text.
@@ -331,7 +333,9 @@ for epoch in range(1, epochs+1):
             
             # Generate prediction
             prediction = ''.join(model.generator(batch_x, max_len=50))
+            print(f"Raw prediction: {prediction}")
             prediction = prediction.split('=')[-1].replace('<eos>', '')
+            print(f"Processed: '{prediction}' vs GT: '{batch_y}'")
 
             # Check correctness
             is_correct = int(prediction == batch_y)
