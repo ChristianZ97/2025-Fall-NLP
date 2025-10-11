@@ -81,7 +81,7 @@ vocab_size = len(char_to_id)
 print('Vocab size{}'.format(vocab_size))
 
 """# Data Preprocessing
- - The data is processed into the format required for the model's input and output. (End with \<eos\> token)
+ - The data is processed into the format required for the model's input and output. (End with \\<eos\\> token)
 
 """
 
@@ -339,8 +339,6 @@ for epoch in range(1, epochs+1):
 
         batch_x = batch_x.to(device)
         batch_y = batch_y.to(device)
-        batch_x_lens = batch_x_lens.to(device)
-        batch_y_lens = batch_y_lens.to(device)
 
         optimizer.zero_grad()
 
@@ -382,8 +380,6 @@ for epoch in range(1, epochs+1):
 
             batch_x = batch_x.to(device)
             batch_y = batch_y.to(device)
-            batch_x_lens = batch_x_lens.to(device)
-            batch_y_lens = batch_y_lens.to(device)
 
             for j in range(batch_x.size(0)):
                 input_ids = batch_x[j][:batch_x_lens[j]]
