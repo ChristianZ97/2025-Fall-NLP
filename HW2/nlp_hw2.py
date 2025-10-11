@@ -382,7 +382,7 @@ for epoch in range(1, epochs + 1):
             prediction = prediction.split("=")[-1].replace("<eos>", "")
             if total < 3:
                 print(
-                    f"[{total}] Input: {batch_x:<20} | Pred: {prediction_clean:>8} | GT: {batch_y:>8} | {'✓' if prediction_clean == batch_y else '✗'}"
+                    f"[{total}] Input: {batch_x:<20} | Pred: {prediction:>8} | GT: {batch_y:>8} | {'✓' if prediction == batch_y else '✗'}"
                 )
 
             # Check correctness
