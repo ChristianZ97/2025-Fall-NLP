@@ -160,7 +160,16 @@ def collate_fn(batch):
 
 # Create DataLoader
 ds_train = Dataset(df_train[['char_id_list', 'label_id_list']])
-dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+#dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+dl_train = torch.utils.data.DataLoader(
+    ds_train, 
+    batch_size=batch_size, 
+    shuffle=True, 
+    collate_fn=collate_fn,
+    num_workers=4,
+    pin_memory=True,
+    persistent_workers=True
+)
 
 # Model Definition
 class CharRNN(torch.nn.Module):
@@ -277,13 +286,16 @@ for epoch in range(1, epochs+1):
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")
     for batch_x, batch_y, batch_x_lens, batch_y_lens in bar:
         # Clear gradients
+        batch_x = batch_x.to(device, non_blocking=True)
+        batch_y = batch_y.to(device, non_blocking=True)
+
         optimizer.zero_grad()
 
         # Forward pass
-        batch_pred_y = model(batch_x.to(device), batch_x_lens)
+        batch_pred_y = model(batch_x, batch_x_lens)
 
         # Compute loss (Teacher Forcing)
-        loss = criterion(batch_pred_y.view(-1, vocab_size), batch_y.view(-1).to(device))
+        loss = criterion(batch_pred_y.view(-1, vocab_size), batch_y.view(-1))
         
         # Backward pass
         loss.backward()
