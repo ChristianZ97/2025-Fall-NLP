@@ -15,6 +15,7 @@ Original file is located at
 ## Dataset
 - [Arithmetic dataset](https://drive.google.com/file/d/1cMuL3hF9jefka9RyF4gEBIGGeFGZYHE-/view?usp=sharing)
 """
+import wandb
 
 #!pip install seaborn
 #!pip install opencc
@@ -145,12 +146,37 @@ df_train.head()
 |`grad_clip`|To prevent gradient explosion in RNNs, restrict the gradient range|1|
 """
 
+"""
 batch_size = 64
 epochs = 2
 embed_dim = 256
 hidden_dim = 256
 lr = 0.001
 grad_clip = 1
+"""
+
+default_config = {
+    'batch_size': 64,
+    'epochs': 2,
+    'embed_dim': 256,
+    'hidden_dim': 256,
+    'lr': 0.001,
+    'grad_clip': 1,
+    'weight_decay': 0.01,
+    'label_smoothing': 0.0,
+}
+
+
+wandb.init(project="nlp-hw2-arithmetic", config=default_config)
+config = wandb.config
+
+batch_size = config.batch_size
+epochs = config.epochs
+embed_dim = config.embed_dim
+hidden_dim = config.hidden_dim
+lr = config.lr
+grad_clip = config.grad_clip
+
 
 """# Data Batching
 - Use `torch.utils.data.Dataset` to create a data generation tool called  `dataset`.
@@ -305,8 +331,10 @@ model = CharRNN(vocab_size,
 
 # criterion = # Write your code here. Cross-entropy loss function. The loss function should ignore <pad>
 # optimizer = # Write your code here. Use Adam or AdamW for Optimizer
-criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id['<pad>'])
-optimizer = torch.optim.AdamW(params=model.parameters(), lr=lr)
+#criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id['<pad>'], label_smoothing=0.0)
+#optimizer = torch.optim.AdamW(params=model.parameters(), lr=lr, weight_decay=0.01)
+criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id['<pad>'], label_smoothing=config.label_smoothing)
+optimizer = torch.optim.AdamW(params=model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
 
 """# Training
 1. The outer `for` loop controls the `epoch`
@@ -352,28 +380,38 @@ for epoch in range(1, epochs+1):
         i+=1
         if i%50==0:
             bar.set_postfix(loss = loss.item())
+            wandb.log({"train_loss": loss.item(), "step": i})
 
     # Evaluate your model
+    model.eval()
     matched = 0
     total = 0
-    bar_eval = tqdm(df_eval.iterrows(), desc=f"Validation epoch {epoch}")
-    for _, row in bar_eval:
-        batch_x = row['src']
-        batch_y = row['tgt']
+    print(f"Eval dataset size: {len(df_eval)}")
+    bar_eval = tqdm(df_eval.iterrows(), total=len(df_eval), desc=f"Validation epoch {epoch}")
+    with torch.no_grad():
+        for _, row in bar_eval:
+            batch_x = row['src']
+            batch_y = row['tgt']
 
-        # prediction = # An example of using generator: model.generator('1+1=')
+            # prediction = # An example of using generator: model.generator('1+1=')
 
-        # Write your code here. Input the batch_x to the model and generate the predictions
-        # Write your code here.
-        # Check whether the prediction match the ground truths
-        # Compute exact match (EM) on the eval dataset
-        # EM = correct/total
+            # Write your code here. Input the batch_x to the model and generate the predictions
+            # Write your code here.
+            # Check whether the prediction match the ground truths
+            # Compute exact match (EM) on the eval dataset
+            # EM = correct/total
 
-        batch_x = batch_x.split('=')[0] + '='
-        prediction = ''.join(model.generator(batch_x, max_len=20))
-        prediction = prediction.split('=')[-1].replace('<eos>', '')
+            batch_x = batch_x.split('=')[0] + '='
+            prediction = ''.join(model.generator(batch_x, max_len=20))
+            prediction = prediction.split('=')[-1].replace('<eos>', '')
 
-        matched += int(prediction == batch_y)
-        total += 1
+            matched += int(prediction == batch_y)
+            total += 1
 
     print(matched/total)
+    wandb.log({"val_accuracy": matched/total, "epoch": epoch})
+
+
+wandb.finish()
+
+    

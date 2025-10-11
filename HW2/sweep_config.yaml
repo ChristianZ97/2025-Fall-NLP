@@ -1,0 +1,26 @@
+program: nlp_hw2.py
+method: bayes
+metric:
+  name: val_accuracy
+  goal: maximize
+parameters:
+  batch_size:
+    values: [32, 64, 128]
+  embed_dim:
+    values: [128, 256, 512]
+  hidden_dim:
+    values: [128, 256, 512]
+  lr:
+    distribution: log_uniform_values
+    min: 0.0001
+    max: 0.01
+  grad_clip:
+    values: [0.5, 1, 2]
+  weight_decay:
+    distribution: log_uniform_values
+    min: 0.00001
+    max: 0.1
+  label_smoothing:
+    values: [0.0, 0.05, 0.1]
+  epochs:
+    value: 2
