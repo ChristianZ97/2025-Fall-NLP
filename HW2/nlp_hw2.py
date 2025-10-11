@@ -285,8 +285,10 @@ class CharRNN(torch.nn.Module):
             # y = # Obtain the next token prediction y
             # next_char = # Use argmax function to get the next token prediction
 
+            batch_x = batch_x.to(next(self.parameters()).device)
             batch_x = torch.tensor(char_list).unsqueeze(0) # [1, seq_len]
             batch_x_len = torch.tensor([len(char_list)])
+            
             y = self.forward(batch_x, batch_x_len) # [1, seq_len, vocab_size]
             logits = y[0, -1] # [vocab_size]
             next_char = torch.argmax(logits, dim=-1).item()
