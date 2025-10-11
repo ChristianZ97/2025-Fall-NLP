@@ -6,7 +6,7 @@ metric:
 early_terminate:
   type: hyperband
   min_iter: 2
-count: 15
+count: 20
 parameters:
   lr:
     distribution: log_uniform_values
