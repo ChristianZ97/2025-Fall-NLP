@@ -26,20 +26,20 @@ from copy import deepcopy
 SEED = int(time.time())
 
 # Data path configuration
-data_path = './'
+data_path = "./"
 
 # Load datasets
-df_train = pd.read_csv(os.path.join(data_path, 'arithmetic_train.csv'))
-df_eval = pd.read_csv(os.path.join(data_path, 'arithmetic_eval.csv'))
+df_train = pd.read_csv(os.path.join(data_path, "arithmetic_train.csv"))
+df_eval = pd.read_csv(os.path.join(data_path, "arithmetic_eval.csv"))
 
 # Transform the input data to string
-df_train['tgt'] = df_train['tgt'].apply(lambda x: str(x))
-df_train['src'] = df_train['src'].add(df_train['tgt'])
-df_train['len'] = df_train['src'].apply(lambda x: len(x))
+df_train["tgt"] = df_train["tgt"].apply(lambda x: str(x))
+df_train["src"] = df_train["src"].add(df_train["tgt"])
+df_train["len"] = df_train["src"].apply(lambda x: len(x))
 
-df_eval['tgt'] = df_eval['tgt'].apply(lambda x: str(x))
-df_eval['src'] = df_eval['src'].add(df_eval['tgt'])
-df_eval['len'] = df_eval['src'].apply(lambda x: len(x))
+df_eval["tgt"] = df_eval["tgt"].apply(lambda x: str(x))
+df_eval["src"] = df_eval["src"].add(df_eval["tgt"])
+df_eval["len"] = df_eval["src"].apply(lambda x: len(x))
 
 # Build Dictionary
 # The model cannot perform calculations directly with plain text.
@@ -47,15 +47,33 @@ df_eval['len'] = df_eval['src'].apply(lambda x: len(x))
 char_to_id = {}
 id_to_char = {}
 
-all_chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '*', '(', ')', '=']
-special_tokens = ['<pad>', '<eos>']
+all_chars = [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "+",
+    "-",
+    "*",
+    "(",
+    ")",
+    "=",
+]
+special_tokens = ["<pad>", "<eos>"]
 all_tokens = special_tokens + all_chars
 
 char_to_id = {char: idx for idx, char in enumerate(all_tokens)}
 id_to_char = {idx: char for idx, char in enumerate(all_tokens)}
 
 vocab_size = len(char_to_id)
-print('Vocab size: {}'.format(vocab_size))
+print("Vocab size: {}".format(vocab_size))
+
 
 # Data Preprocessing
 def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
@@ -63,23 +81,23 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
     char_id_list = []
     label_id_list = []
     src_len_list = []
-    
-    for sent in df['src']:
+
+    for sent in df["src"]:
         sent_len = len(sent)
-        sent = sent.split('=')
+        sent = sent.split("=")
         sent_train = sent[0]
         sent_tgt = sent[1]
 
         char_id = []
         label_id = []
-        
+
         # Input part before '='
         for char in sent_train:
             char_id.append(char_to_id[char])
-            label_id.append(char_to_id['<pad>'])
+            label_id.append(char_to_id["<pad>"])
 
         # '=' symbol
-        char_id.append(char_to_id['='])
+        char_id.append(char_to_id["="])
         label_id.append(char_to_id[sent_tgt[0]])
 
         # Answer part - each position predicts NEXT character
@@ -88,11 +106,14 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
             if i < len(sent_tgt) - 1:
                 label_id.append(char_to_id[sent_tgt[i + 1]])
             else:
-                label_id.append(char_to_id['<eos>'])
+                label_id.append(char_to_id["<eos>"])
+
+        #   0     +     0   =   0   <eos>
+        # <pad> <pad> <pad> 0 <eos> <pad>
 
         # End of sequence token
-        char_id.append(char_to_id['<eos>'])
-        label_id.append(char_to_id['<eos>'])
+        char_id.append(char_to_id["<eos>"])
+        label_id.append(char_to_id["<pad>"])
 
         src_len_list.append(sent_len)
         char_id_list.append(char_id)
@@ -104,14 +125,15 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
 
     return df
 
+
 df_train = data_preprocess(df_train, char_to_id)
 df_eval = data_preprocess(df_eval, char_to_id)
 
 # Hyperparameter configuration
 default_config = {
-    'lr': 0.001,
-    'weight_decay': 0.01,
-    'rnn_type': 'LSTM',  # Options: 'LSTM', 'GRU', 'RNN'
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "rnn_type": "LSTM",  # Options: 'LSTM', 'GRU', 'RNN'
 }
 epochs = 5
 batch_size = 128
@@ -123,6 +145,7 @@ hidden_dim = 256
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
 config = wandb.config
 
+
 # Dataset class
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, sequences):
@@ -132,9 +155,10 @@ class Dataset(torch.utils.data.Dataset):
         return len(self.sequences)
 
     def __getitem__(self, index):
-        x = self.sequences.iloc[index]['char_id_list']
-        y = self.sequences.iloc[index]['label_id_list']
+        x = self.sequences.iloc[index]["char_id_list"]
+        y = self.sequences.iloc[index]["label_id_list"]
         return x, y
+
 
 # Collate function for DataLoader
 def collate_fn(batch):
@@ -144,66 +168,70 @@ def collate_fn(batch):
     batch_y_lens = torch.LongTensor([len(y) for y in batch_y])
 
     # Pad sequences to the same length
-    pad_batch_x = torch.nn.utils.rnn.pad_sequence(batch_x,
-                                                  batch_first=True,
-                                                  padding_value=char_to_id['<pad>'])
+    pad_batch_x = torch.nn.utils.rnn.pad_sequence(
+        batch_x, batch_first=True, padding_value=char_to_id["<pad>"]
+    )
 
-    pad_batch_y = torch.nn.utils.rnn.pad_sequence(batch_y,
-                                                  batch_first=True,
-                                                  padding_value=char_to_id['<pad>'])
+    pad_batch_y = torch.nn.utils.rnn.pad_sequence(
+        batch_y, batch_first=True, padding_value=char_to_id["<pad>"]
+    )
 
     return pad_batch_x, pad_batch_y, batch_x_lens, batch_y_lens
 
+
 # Create DataLoader
-ds_train = Dataset(df_train[['char_id_list', 'label_id_list']])
-#dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+ds_train = Dataset(df_train[["char_id_list", "label_id_list"]])
+# dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 dl_train = torch.utils.data.DataLoader(
-    ds_train, 
-    batch_size=batch_size, 
-    shuffle=True, 
+    ds_train,
+    batch_size=batch_size,
+    shuffle=True,
     collate_fn=collate_fn,
     num_workers=4,
     pin_memory=True,
-    persistent_workers=True
+    persistent_workers=True,
 )
+
 
 # Model Definition
 class CharRNN(torch.nn.Module):
-    def __init__(self, vocab_size, embed_dim, hidden_dim, rnn_type='LSTM'):
+    def __init__(self, vocab_size, embed_dim, hidden_dim, rnn_type="LSTM"):
         super(CharRNN, self).__init__()
 
-        self.embedding = torch.nn.Embedding(num_embeddings=vocab_size,
-                                            embedding_dim=embed_dim,
-                                            padding_idx=char_to_id['<pad>'])
+        self.embedding = torch.nn.Embedding(
+            num_embeddings=vocab_size,
+            embedding_dim=embed_dim,
+            padding_idx=char_to_id["<pad>"],
+        )
 
         # Select RNN architecture
-        if rnn_type == 'LSTM':
-            self.rnn_layer1 = torch.nn.LSTM(input_size=embed_dim,
-                                            hidden_size=hidden_dim,
-                                            batch_first=True)
-            self.rnn_layer2 = torch.nn.LSTM(input_size=hidden_dim,
-                                            hidden_size=hidden_dim,
-                                            batch_first=True)
-        elif rnn_type == 'GRU':
-            self.rnn_layer1 = torch.nn.GRU(input_size=embed_dim,
-                                           hidden_size=hidden_dim,
-                                           batch_first=True)
-            self.rnn_layer2 = torch.nn.GRU(input_size=hidden_dim,
-                                           hidden_size=hidden_dim,
-                                           batch_first=True)
+        if rnn_type == "LSTM":
+            self.rnn_layer1 = torch.nn.LSTM(
+                input_size=embed_dim, hidden_size=hidden_dim, batch_first=True
+            )
+            self.rnn_layer2 = torch.nn.LSTM(
+                input_size=hidden_dim, hidden_size=hidden_dim, batch_first=True
+            )
+        elif rnn_type == "GRU":
+            self.rnn_layer1 = torch.nn.GRU(
+                input_size=embed_dim, hidden_size=hidden_dim, batch_first=True
+            )
+            self.rnn_layer2 = torch.nn.GRU(
+                input_size=hidden_dim, hidden_size=hidden_dim, batch_first=True
+            )
         else:  # RNN
-            self.rnn_layer1 = torch.nn.RNN(input_size=embed_dim,
-                                           hidden_size=hidden_dim,
-                                           batch_first=True)
-            self.rnn_layer2 = torch.nn.RNN(input_size=hidden_dim,
-                                           hidden_size=hidden_dim,
-                                           batch_first=True)
+            self.rnn_layer1 = torch.nn.RNN(
+                input_size=embed_dim, hidden_size=hidden_dim, batch_first=True
+            )
+            self.rnn_layer2 = torch.nn.RNN(
+                input_size=hidden_dim, hidden_size=hidden_dim, batch_first=True
+            )
 
-        self.linear = torch.nn.Sequential(torch.nn.Linear(in_features=hidden_dim,
-                                                          out_features=hidden_dim),
-                                          torch.nn.ReLU(),
-                                          torch.nn.Linear(in_features=hidden_dim,
-                                                          out_features=vocab_size))
+        self.linear = torch.nn.Sequential(
+            torch.nn.Linear(in_features=hidden_dim, out_features=hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(in_features=hidden_dim, out_features=vocab_size),
+        )
 
     def forward(self, batch_x, batch_x_lens):
         return self.encoder(batch_x, batch_x_lens)
@@ -213,7 +241,9 @@ class CharRNN(torch.nn.Module):
         batch_x = self.embedding(batch_x)
 
         # Pack padded sequence for efficient RNN processing
-        batch_x = torch.nn.utils.rnn.pack_padded_sequence(batch_x, batch_x_lens, batch_first=True, enforce_sorted=False)
+        batch_x = torch.nn.utils.rnn.pack_padded_sequence(
+            batch_x, batch_x_lens, batch_first=True, enforce_sorted=False
+        )
 
         # RNN layers
         batch_x, _ = self.rnn_layer1(batch_x)
@@ -242,33 +272,36 @@ class CharRNN(torch.nn.Module):
 
             # Forward pass
             y = self.forward(batch_x, batch_x_len)
-            
+
             # Get logits for the last position
             logits = y[0, -1]
-            
+
             # Predict next character
             next_char = torch.argmax(logits, dim=-1).item()
 
             # Check for end of sequence
-            if next_char == char_to_id['<eos>']:
+            if next_char == char_to_id["<eos>"]:
                 break
 
             char_list.append(next_char)
 
         return [id_to_char[ch_id] for ch_id in char_list]
 
+
 # Set random seed for reproducibility
 torch.manual_seed(SEED)
 
 # Device configuration
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Initialize model
 model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=config.rnn_type)
 
 # Loss function and optimizer
-criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id['<pad>'])
-optimizer = torch.optim.AdamW(params=model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
+criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
+optimizer = torch.optim.AdamW(
+    params=model.parameters(), lr=config.lr, weight_decay=config.weight_decay
+)
 
 # Training Loop
 print(f"\n\nUsing device: {device}")
@@ -278,7 +311,7 @@ model.train()
 i = 0
 best_accuracy = 0.0
 
-for epoch in range(1, epochs+1):
+for epoch in range(1, epochs + 1):
     # Training phase
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")
     for batch_x, batch_y, batch_x_lens, batch_y_lens in bar:
@@ -293,7 +326,7 @@ for epoch in range(1, epochs+1):
 
         # Compute loss (Teacher Forcing)
         loss = criterion(batch_pred_y.view(-1, vocab_size), batch_y.view(-1))
-        
+
         # Backward pass
         loss.backward()
 
@@ -306,39 +339,45 @@ for epoch in range(1, epochs+1):
         i += 1
         if i % 50 == 0:
             bar.set_postfix(loss=loss.item())
-            wandb.log({
-                "train_loss": loss.item(),
-                "step": i,
-                "epoch": epoch,
-                "learning_rate": optimizer.param_groups[0]['lr']
-            })
+            wandb.log(
+                {
+                    "train_loss": loss.item(),
+                    "step": i,
+                    "epoch": epoch,
+                    "learning_rate": optimizer.param_groups[0]["lr"],
+                }
+            )
 
     # Evaluation phase
     model.eval()
     matched = 0
     total = 0
     examples = []  # Store prediction examples
-    
+
     # Limit evaluation for faster hyperparameter search
     eval_limit = min(1000, len(df_eval))  # Evaluate at most 1000 samples
 
     # Random sampling for unbiased evaluation
-    df_eval_sample = df_eval.sample(n=eval_limit, random_state=SEED)  # Fixed seed for reproducibility
+    df_eval_sample = df_eval.sample(
+        n=eval_limit, random_state=SEED
+    )  # Fixed seed for reproducibility
     bar_eval = tqdm(df_eval_sample.iterrows(), desc=f"Validation epoch {epoch}")
 
     with torch.no_grad():
         for _, row in bar_eval:
-            batch_x = row['src']
-            batch_y = row['tgt']
+            batch_x = row["src"]
+            batch_y = row["tgt"]
 
             # Extract question part (before '=')
-            batch_x = batch_x.split('=')[0] + '='
-            
+            batch_x = batch_x.split("=")[0] + "="
+
             # Generate prediction
-            prediction = ''.join(model.generator(batch_x, max_len=50))
-            if total <= 10: print(f"\nRaw prediction: {prediction}")
-            prediction = prediction.split('=')[-1].replace('<eos>', '')
-            if total <= 10: print(f"Processed: '{prediction}' vs GT: '{batch_y}'\n")
+            prediction = "".join(model.generator(batch_x, max_len=50))
+            if total <= 10:
+                print(f"\nRaw prediction: {prediction}")
+            prediction = prediction.split("=")[-1].replace("<eos>", "")
+            if total <= 10:
+                print(f"Processed: '{prediction}' vs GT: '{batch_y}'\n")
 
             # Check correctness
             is_correct = int(prediction == batch_y)
@@ -347,39 +386,47 @@ for epoch in range(1, epochs+1):
 
             # Store first 10 examples for logging
             if total <= 10:
-                examples.append({
-                    'input': batch_x,
-                    'prediction': prediction,
-                    'ground_truth': batch_y,
-                    'correct': is_correct
-                })
+                examples.append(
+                    {
+                        "input": batch_x,
+                        "prediction": prediction,
+                        "ground_truth": batch_y,
+                        "correct": is_correct,
+                    }
+                )
 
     # Calculate accuracy
     accuracy = matched / total
     print(f"Epoch {epoch} - Validation Accuracy: {accuracy:.4f} ({matched}/{total})")
-    
+
     # Log to wandb
-    wandb.log({
-        "val_accuracy": accuracy,
-        "val_correct": matched,
-        "val_total": total,
-        "epoch": epoch,
-        "examples": wandb.Table(dataframe=pd.DataFrame(examples))
-    })
-    
+    wandb.log(
+        {
+            "val_accuracy": accuracy,
+            "val_correct": matched,
+            "val_total": total,
+            "epoch": epoch,
+            "examples": wandb.Table(dataframe=pd.DataFrame(examples)),
+        }
+    )
+
     # Track best accuracy
     if accuracy > best_accuracy:
         best_accuracy = accuracy
-    
+
     # Set model back to training mode
     model.train()
 
 # Log final summary
-wandb.run.summary.update({
-    "best_val_accuracy": best_accuracy,
-    "total_params": sum(p.numel() for p in model.parameters()),
-    "trainable_params": sum(p.numel() for p in model.parameters() if p.requires_grad)
-})
+wandb.run.summary.update(
+    {
+        "best_val_accuracy": best_accuracy,
+        "total_params": sum(p.numel() for p in model.parameters()),
+        "trainable_params": sum(
+            p.numel() for p in model.parameters() if p.requires_grad
+        ),
+    }
+)
 
 wandb.finish()
 
