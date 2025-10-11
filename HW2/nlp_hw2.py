@@ -368,7 +368,7 @@ for epoch in range(1, epochs + 1):
         n=eval_limit, random_state=SEED
     )  # Fixed seed for reproducibility
     bar_eval = tqdm(df_eval_sample.iterrows(), desc=f"Validation epoch {epoch}")
-
+    print("\n")
     with torch.no_grad():
         for _, row in bar_eval:
             batch_x = row["src"]
