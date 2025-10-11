@@ -7,8 +7,8 @@ Original file is located at
     https://colab.research.google.com/drive/1kUvCMeJgY-7HfK6FurzeXTMmFVWsKwLM
 """
 
-from google.colab import drive
-drive.mount('/content/gdrive')
+# from google.colab import drive
+# drive.mount('/content/gdrive')
 
 """# LSTM-arithmetic
 
@@ -16,9 +16,9 @@ drive.mount('/content/gdrive')
 - [Arithmetic dataset](https://drive.google.com/file/d/1cMuL3hF9jefka9RyF4gEBIGGeFGZYHE-/view?usp=sharing)
 """
 
-!pip install seaborn
-!pip install opencc
-!pip install -U scikit-learn
+# !pip install seaborn
+# !pip install opencc
+# !pip install -U scikit-learn
 
 import numpy as np
 import pandas as pd
@@ -32,8 +32,9 @@ import opencc
 import os
 from sklearn.model_selection import train_test_split
 
-#data_path = './data'
-data_path = '/content/gdrive/MyDrive/Colab Notebooks/NLP/HW2'
+# data_path = './data'
+# data_path = '/content/gdrive/MyDrive/Colab Notebooks/NLP/HW2'
+data_path = './'
 
 df_train = pd.read_csv(os.path.join(data_path, 'arithmetic_train.csv'))
 df_eval = pd.read_csv(os.path.join(data_path, 'arithmetic_eval.csv'))
