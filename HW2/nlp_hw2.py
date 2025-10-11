@@ -80,12 +80,15 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
 
         # '=' symbol
         char_id.append(char_to_id['='])
-        label_id.append(char_to_id['='])
+        label_id.append(char_to_id[sent_tgt[0]])
 
-        # Answer part after '='
-        for char in sent_tgt:
+        # Answer part - each position predicts NEXT character
+        for i, char in enumerate(sent_tgt):
             char_id.append(char_to_id[char])
-            label_id.append(char_to_id[char])
+            if i < len(sent_tgt) - 1:
+                label_id.append(char_to_id[sent_tgt[i + 1]])
+            else:
+                label_id.append(char_to_id['<eos>'])
 
         # End of sequence token
         char_id.append(char_to_id['<eos>'])
