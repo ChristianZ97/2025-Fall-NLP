@@ -14,22 +14,34 @@ print("-" * 80)
 # Extract data from all runs
 results = []
 for run in sweep.runs:
-    config = run.config
-    summary = run.summary
-    
-    results.append({
-        'run_name': run.name,
-        'state': run.state,
-        'lr': config.get('lr'),
-        'weight_decay': config.get('weight_decay'),
-        'rnn_type': config.get('rnn_type'),
-        'val_accuracy': summary.get('val_accuracy', 0),
-        'best_val_accuracy': summary.get('best_val_accuracy', 0),
-        'train_loss': summary.get('train_loss', np.nan),
-        'total_params': summary.get('total_params', 0),
-    })
+    try:
+        # Handle config as dict
+        if hasattr(run.config, 'items'):
+            config_dict = dict(run.config)
+        else:
+            config_dict = {}
+        
+        summary_dict = dict(run.summary) if hasattr(run.summary, 'items') else {}
+        
+        results.append({
+            'run_name': run.name,
+            'state': run.state,
+            'lr': config_dict.get('lr', np.nan),
+            'weight_decay': config_dict.get('weight_decay', np.nan),
+            'rnn_type': config_dict.get('rnn_type', 'Unknown'),
+            'val_accuracy': summary_dict.get('val_accuracy', 0),
+            'best_val_accuracy': summary_dict.get('best_val_accuracy', 0),
+            'train_loss': summary_dict.get('train_loss', np.nan),
+            'total_params': summary_dict.get('total_params', 0),
+        })
+    except Exception as e:
+        print(f"Warning: Skipping run {run.name} due to error: {e}")
+        continue
 
 df = pd.DataFrame(results)
+
+# Remove rows with missing critical data
+df = df.dropna(subset=['lr', 'weight_decay'])
 
 # Filter completed runs only
 df_finished = df[df['state'] == 'finished'].copy()
@@ -40,6 +52,10 @@ print(f"  Finished: {len(df_finished)}")
 print(f"  Crashed: {len(df_crashed)}")
 print(f"  Other: {len(df) - len(df_finished) - len(df_crashed)}")
 
+if len(df_finished) == 0:
+    print("\nNo finished runs found. Check if runs completed successfully.")
+    exit()
+
 # Sort by best validation accuracy
 df_finished = df_finished.sort_values('best_val_accuracy', ascending=False)
 
@@ -48,7 +64,8 @@ print("TOP 10 CONFIGURATIONS")
 print("=" * 80)
 
 for idx, row in df_finished.head(10).iterrows():
-    print(f"\nRank {df_finished.index.get_loc(idx) + 1}: {row['run_name']}")
+    rank = list(df_finished.index).index(idx) + 1
+    print(f"\nRank {rank}: {row['run_name']}")
     print(f"  Val Accuracy:  {row['best_val_accuracy']:.4f}")
     print(f"  LR:            {row['lr']:.6f}")
     print(f"  Weight Decay:  {row['weight_decay']:.6f}")
@@ -74,7 +91,9 @@ print(f"  Min:    {top10['weight_decay'].min():.6f}")
 print(f"  Max:    {top10['weight_decay'].max():.6f}")
 
 print(f"\nRNN Type Distribution (Top 10):")
-print(top10['rnn_type'].value_counts())
+rnn_counts = top10['rnn_type'].value_counts()
+for rnn_type, count in rnn_counts.items():
+    print(f"  {rnn_type}: {count}")
 
 # Accuracy by RNN type
 print("\n" + "=" * 80)
@@ -100,11 +119,11 @@ print("\n" + "=" * 80)
 print("SUGGESTED REFINED SWEEP CONFIG")
 print("=" * 80)
 
-lr_min = top10['lr'].quantile(0.25)
-lr_max = top10['lr'].quantile(0.75)
-wd_min = top10['weight_decay'].quantile(0.25)
-wd_max = top10['weight_decay'].quantile(0.75)
-best_rnn = top10['rnn_type'].mode()[0]
+lr_min = max(top10['lr'].quantile(0.25), 0.0001)  # Ensure reasonable minimum
+lr_max = min(top10['lr'].quantile(0.75), 0.1)     # Ensure reasonable maximum
+wd_min = max(top10['weight_decay'].quantile(0.25), 0.00001)
+wd_max = min(top10['weight_decay'].quantile(0.75), 0.1)
+best_rnn = top10['rnn_type'].mode()[0] if len(top10['rnn_type'].mode()) > 0 else 'LSTM'
 
 print(f"""
 program: nlp_hw2.py
@@ -130,3 +149,10 @@ parameters:
 
 print("=" * 80)
 print("Analysis complete.")
+print(f"\nBest configuration:")
+best = df_finished.iloc[0]
+print(f"  Run: {best['run_name']}")
+print(f"  Accuracy: {best['best_val_accuracy']:.4f}")
+print(f"  LR: {best['lr']:.6f}")
+print(f"  Weight Decay: {best['weight_decay']:.6f}")
+print(f"  RNN Type: {best['rnn_type']}")
