@@ -410,8 +410,6 @@ for epoch in range(1, epochs + 1):
         {
             "val_accuracy": accuracy,
             "val_correct": matched,
-            "val_total": total,
-            "epoch": epoch,
             "examples": wandb.Table(dataframe=pd.DataFrame(examples)),
         }
     )
