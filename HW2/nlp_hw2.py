@@ -23,7 +23,7 @@ import os
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from copy import deepcopy
-from muon import MuonWithAuxAdam  # pip install git+https://github.com/KellerJordan/Muon
+from muon import Muon  # pip install git+https://github.com/KellerJordan/Muon
 
 SEED = int(time.time())
 
