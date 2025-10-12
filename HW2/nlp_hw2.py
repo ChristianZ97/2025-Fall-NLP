@@ -179,8 +179,6 @@ hidden_dim = calculate_hidden_dim(
     rnn_type=config.rnn_type, embed_dim=embed_dim, vocab_size=vocab_size
 )
 
-model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=rnn_type)
-
 
 # Dataset class
 class Dataset(torch.utils.data.Dataset):
