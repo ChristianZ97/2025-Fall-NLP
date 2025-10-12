@@ -359,7 +359,7 @@ adamw_params = [
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
 optimizers = [
-    SingleDeviceMuon(muon_params, lr=0.02, momentum=0.95),
+    SingleDeviceMuon(muon_params, lr=config.lr, momentum=0.95),
     optim.AdamW(adamw_params, lr=config.lr, weight_decay=config.weight_decay),
 ]
 
