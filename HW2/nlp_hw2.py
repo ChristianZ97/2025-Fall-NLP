@@ -23,6 +23,7 @@ import os
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from copy import deepcopy
+import torch.optim as optim
 from muon import SingleDeviceMuon  # pip install git+https://github.com/KellerJordan/Muon
 
 SEED = int(time.time())
