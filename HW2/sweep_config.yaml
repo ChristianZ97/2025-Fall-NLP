@@ -5,15 +5,25 @@ metric:
   goal: maximize
 early_terminate:
   type: hyperband
-  min_iter: 3
+  min_iter: 2
 parameters:
-  lr:
+  lr_adamw:
     distribution: log_uniform_values
-    min: 0.0008
+    min: 0.00085
     max: 0.0015
   weight_decay:
     distribution: log_uniform_values
-    min: 0.0027
-    max: 0.01
+    min: 0.003
+    max: 0.012
+  lr_muon:
+    distribution: log_uniform_values
+    min: 0.0008
+    max: 0.0015
+  momentum:
+    distribution: log_uniform_values
+    min: 0.99
+    max: 0.9
   rnn_type:
     values: ['LSTM', 'GRU', 'RNN']
+  batch_size:
+    values: ['128', '256', '512']

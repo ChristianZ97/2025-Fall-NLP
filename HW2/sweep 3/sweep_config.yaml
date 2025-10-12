@@ -9,13 +9,11 @@ early_terminate:
 parameters:
   lr:
     distribution: log_uniform_values
-    min: 0.000806008214923142
-    max: 0.0014968723991429782
+    min: 0.0008
+    max: 0.0015
   weight_decay:
     distribution: log_uniform_values
-    min: 0.0027012706900452895
-    max: 0.010805082760181158
+    min: 0.0027
+    max: 0.01
   rnn_type:
-    values:
-    - GRU
-    - LSTM
+    values: ['LSTM', 'GRU', 'RNN']
