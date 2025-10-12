@@ -378,12 +378,13 @@ model = model.to(device)
 model.train()
 i = 0
 best_accuracy = 0.0
-
+global_samples = 0
 for epoch in range(1, epochs + 1):
     # Training phase
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")
     for batch_x, batch_y, batch_x_lens, batch_y_lens in bar:
         # Clear gradients
+        global_samples += batch_x.size(0)
         batch_x = batch_x.to(device, non_blocking=True)
         batch_y = batch_y.to(device, non_blocking=True)
 
@@ -421,7 +422,8 @@ for epoch in range(1, epochs + 1):
                     "train_loss": loss.item(),
                     "raw_grad_norm": raw_grad_norm,
                     "batch_perplexity": torch.exp(loss).item(),
-                }
+                },
+                step=global_samples,
             )
 
     # Evaluation phase
