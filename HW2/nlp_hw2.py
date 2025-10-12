@@ -23,7 +23,7 @@ import os
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from copy import deepcopy
-from muon import Muon  # pip install git+https://github.com/KellerJordan/Muon
+from muon import SingleDeviceMuon  # pip install git+https://github.com/KellerJordan/Muon
 
 SEED = int(time.time())
 
@@ -358,7 +358,7 @@ adamw_params = [
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
 optimizers = [
-    Muon(muon_params, lr=0.02, momentum=0.95, rank=0, world_size=1),
+    SingleDeviceMuon(muon_params, lr=0.02, momentum=0.95),
     optim.AdamW(adamw_params, lr=config.lr, weight_decay=config.weight_decay),
 ]
 
