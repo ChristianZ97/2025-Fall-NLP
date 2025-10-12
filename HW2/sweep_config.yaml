@@ -21,8 +21,8 @@ parameters:
     max: 0.0015
   momentum:
     distribution: log_uniform_values
-    min: 0.99
-    max: 0.9
+    min: 0.85
+    max: 0.999
   rnn_type:
     values: ['LSTM', 'GRU', 'RNN']
   batch_size:
