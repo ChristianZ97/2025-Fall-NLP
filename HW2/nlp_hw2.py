@@ -354,25 +354,20 @@ adamw_params = [
     *model.linear.parameters(),
 ]
 
-param_groups = [
-    dict(params=muon_params, use_muon=True, lr=0.02),
-    dict(
-        params=adamw_params,
-        use_muon=False,
-        lr=config.lr,
-        weight_decay=config.weight_decay,
-    ),
-]
-
 
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
-optimizer = MuonWithAuxAdam(param_groups, rank=0, world_size=1)
+optimizers = [
+    Muon(muon_params, lr=0.02, momentum=0.95, rank=0, world_size=1),
+    optim.AdamW(adamw_params, lr=config.lr, weight_decay=config.weight_decay),
+]
 
 
 # Training Loop
 print(f"\n\nUsing device: {device}")
 print(f"RNN Type: {config.rnn_type}, Hidden Dim: {hidden_dim}")
+print(f"Muon will optimize {sum(p.numel() for p in muon_params)} parameters.")
+print(f"AdamW will optimize {sum(p.numel() for p in adamw_params)} parameters.")
 print(f"Using random seed: {SEED}\n\n")
 model = model.to(device)
 model.train()
@@ -387,7 +382,8 @@ for epoch in range(1, epochs + 1):
         batch_x = batch_x.to(device, non_blocking=True)
         batch_y = batch_y.to(device, non_blocking=True)
 
-        optimizer.zero_grad()
+        for optimizer in optimizers:
+            optimizer.zero_grad()
 
         # Forward pass
         batch_pred_y = model(batch_x, batch_x_lens)
@@ -409,7 +405,8 @@ for epoch in range(1, epochs + 1):
         torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip)
 
         # Update parameters
-        optimizer.step()
+        for optimizer in optimizers:
+            optimizer.step()
 
         i += 1
         if i % 50 == 0:
