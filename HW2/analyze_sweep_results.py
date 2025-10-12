@@ -16,27 +16,19 @@ print("-" * 80)
 # Extract data from all runs
 results = []
 for run in sweep.runs:
-    try:
-        # Direct attribute access instead of dict conversion
-        lr = run.config.get('lr') if hasattr(run.config, 'get') else getattr(run.config, 'lr', np.nan)
-        wd = run.config.get('weight_decay') if hasattr(run.config, 'get') else getattr(run.config, 'weight_decay', np.nan)
-        rnn = run.config.get('rnn_type') if hasattr(run.config, 'get') else getattr(run.config, 'rnn_type', 'Unknown')
-        
-        val_acc = run.summary.get('val_accuracy') if hasattr(run.summary, 'get') else getattr(run.summary, 'val_accuracy', 0)
-        best_acc = run.summary.get('best_val_accuracy') if hasattr(run.summary, 'get') else getattr(run.summary, 'best_val_accuracy', 0)
-        
-        results.append({
-            'run_name': run.name,
-            'state': run.state,
-            'lr': float(lr) if lr is not None else np.nan,
-            'weight_decay': float(wd) if wd is not None else np.nan,
-            'rnn_type': str(rnn) if rnn is not None else 'Unknown',
-            'val_accuracy': float(val_acc) if val_acc is not None else 0.0,
-            'best_val_accuracy': float(best_acc) if best_acc is not None else 0.0,
-        })
-    except Exception as e:
-        print(f"Warning: Skipping run {run.name}: {str(e)[:50]}")
-        continue
+    # 明確轉換為字典
+    config_dict = dict(run.config) if run.config else {}
+    summary_dict = dict(run.summary) if run.summary else {}
+    
+    results.append({
+        'run_name': run.name,
+        'state': run.state,
+        'lr': config_dict.get('lr', np.nan),
+        'weight_decay': config_dict.get('weight_decay', np.nan),
+        'rnn_type': config_dict.get('rnn_type', 'Unknown'),
+        'val_accuracy': summary_dict.get('val_accuracy', 0.0),
+        'best_val_accuracy': summary_dict.get('best_val_accuracy', 0.0),
+    })
 
 df = pd.DataFrame(results)
 print(f"\nSuccessfully loaded {len(df)} runs")
