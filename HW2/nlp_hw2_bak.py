@@ -23,7 +23,7 @@ import os
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from copy import deepcopy
-from muon import Muon # pip install git+https://github.com/KellerJordan/Muon
+from muon import Muon
 
 SEED = int(time.time())
 
@@ -332,33 +332,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Initialize model
 model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=config.rnn_type)
 
-# model.embedding -> embed
-# model.rnnlayer1, model.rnnlayer2 -> body
-# model.linear -> head
-
-muon_params = [
-    p for layer in [model.rnnlayer1, model.rnnlayer2] 
-    for p in layer.parameters() if p.ndim >= 2
-]
-
-adamw_params = [
-    *model.embedding.parameters(),
-    *[p for layer in [model.rnnlayer1, model.rnnlayer2] for p in layer.parameters() if p.ndim < 2],
-    *model.linear.parameters()
-]
-
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
-optimizers = [
-    Muon(muon_params, lr=0.02, momentum=0.95),
-    torch.optim.AdamW(params=adamw_params, lr=config.lr, weight_decay=config.weight_decay)
-]
+optimizer = torch.optim.AdamW(
+    params=model.parameters(), lr=config.lr, weight_decay=config.weight_decay
+)
 
 # Training Loop
 print(f"\n\nUsing device: {device}")
 print(f"RNN Type: {config.rnn_type}, Hidden Dim: {hidden_dim}")
-print(f"Muon will optimize {sum(p.numel() for p in muon_params)} parameters.")
-print(f"AdamW will optimize {sum(p.numel() for p in adamw_params)} parameters.")
 print(f"Using random seed: {SEED}\n\n")
 model = model.to(device)
 model.train()
@@ -373,8 +355,7 @@ for epoch in range(1, epochs + 1):
         batch_x = batch_x.to(device, non_blocking=True)
         batch_y = batch_y.to(device, non_blocking=True)
 
-        for optimizer in optimizers:
-            optimizer.zero_grad()
+        optimizer.zero_grad()
 
         # Forward pass
         batch_pred_y = model(batch_x, batch_x_lens)
@@ -392,13 +373,11 @@ for epoch in range(1, epochs + 1):
             if p.grad is not None:
                 param_norm = p.grad.data.norm(2)
                 raw_grad_norm += param_norm.item() ** 2
-        raw_grad_norm = raw_grad_norm ** 0.5
+        raw_grad_norm = raw_grad_norm**0.5
         torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip)
 
         # Update parameters
-
-        for optimizer in optimizers:
-            optimizer.step()
+        optimizer.step()
 
         i += 1
         if i % 50 == 0:
