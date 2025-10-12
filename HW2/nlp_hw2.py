@@ -338,7 +338,7 @@ model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=config.rnn_type)
 
 muon_params = [
     p
-    for layer in [model.rnnlayer1, model.rnnlayer2]
+    for layer in [model.rnn_layer1, model.rnn_layer2]
     for p in layer.parameters()
     if p.ndim >= 2
 ]
@@ -347,7 +347,7 @@ adamw_params = [
     *model.embedding.parameters(),
     *[
         p
-        for layer in [model.rnnlayer1, model.rnnlayer2]
+        for layer in [model.rnn_layer1, model.rnn_layer2]
         for p in layer.parameters()
         if p.ndim < 2
     ],
