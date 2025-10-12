@@ -9,6 +9,7 @@ Original file is located at
 
 import wandb
 import time
+import math
 import numpy as np
 import pandas as pd
 import torch
@@ -144,6 +145,7 @@ embed_dim = 256
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
 config = wandb.config
 
+
 def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
     """
     - LSTM: 13h² + (4e + v + 17)h + (ve + v)
@@ -156,13 +158,13 @@ def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
     c_lstm_const = vocab_size * embed_dim + vocab_size
     target_params = a_lstm * h_base**2 + b_lstm * h_base + c_lstm_const
 
-    if rnn_type == 'LSTM':
+    if rnn_type == "LSTM":
         return 256
-    elif rnn_type == 'GRU':
+    elif rnn_type == "GRU":
         a = 10
         b = 3 * embed_dim + vocab_size + 13
         c_const = vocab_size * embed_dim + vocab_size
-    elif rnn_type == 'RNN':
+    elif rnn_type == "RNN":
         a = 4
         b = embed_dim + vocab_size + 5
         c_const = vocab_size * embed_dim + vocab_size
@@ -172,9 +174,13 @@ def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
     h = (-b + math.sqrt(discriminant)) / (2 * a)
     return int(round(h))
 
-hidden_dim = calculate_hidden_dim(rnn_type=config.rnn_type, embed_dim=embed_dim, vocab_size=vocab_size)
+
+hidden_dim = calculate_hidden_dim(
+    rnn_type=config.rnn_type, embed_dim=embed_dim, vocab_size=vocab_size
+)
 
 model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=rnn_type)
+
 
 # Dataset class
 class Dataset(torch.utils.data.Dataset):
