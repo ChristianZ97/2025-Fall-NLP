@@ -135,11 +135,42 @@ default_config = {
     "weight_decay": 0.01,
     "rnn_type": "LSTM",  # Options: 'LSTM', 'GRU', 'RNN'
 }
-epochs = 5
+epochs = 10
 batch_size = 128
 grad_clip = 1
 embed_dim = 256
-hidden_dim = 256
+
+def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
+    """
+    - LSTM: 13h² + (4e + v + 17)h + (ve + v)
+    - GRU:  10h² + (3e + v + 13)h + (ve + v)
+    - RNN:   4h² + (e + v + 5)h + (ve + v)
+    """
+    h_base = 256
+    a_lstm = 13
+    b_lstm = 4 * embed_dim + vocab_size + 17
+    c_lstm_const = vocab_size * embed_dim + vocab_size
+    target_params = a_lstm * h_base**2 + b_lstm * h_base + c_lstm_const
+
+    if rnn_type == 'LSTM':
+        return 256
+    elif rnn_type == 'GRU':
+        a = 10
+        b = 3 * embed_dim + vocab_size + 13
+        c_const = vocab_size * embed_dim + vocab_size
+    elif rnn_type == 'RNN':
+        a = 4
+        b = embed_dim + vocab_size + 5
+        c_const = vocab_size * embed_dim + vocab_size
+
+    c = c_const - target_params
+    discriminant = b**2 - 4 * a * c
+    h = (-b + math.sqrt(discriminant)) / (2 * a)
+    return int(round(h))
+
+hidden_dim = calculate_hidden_dim(rnn_type=config.rnn_type, embed_dim=embed_dim, vocab_size=vocab_size)
+
+model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=rnn_type)
 
 # Initialize wandb
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
@@ -305,6 +336,7 @@ optimizer = torch.optim.AdamW(
 
 # Training Loop
 print(f"\n\nUsing device: {device}")
+print(f"RNN Type: {rnn_type}, Hidden Dim: {hidden_dim}")
 print(f"Using random seed: {SEED}\n\n")
 model = model.to(device)
 model.train()
@@ -361,7 +393,7 @@ for epoch in range(1, epochs + 1):
     examples = []  # Store prediction examples
 
     # Limit evaluation for faster hyperparameter search
-    eval_limit = min(1000, len(df_eval))  # Evaluate at most 1000 samples
+    eval_limit = min(5000, len(df_eval))  # Evaluate at most 5000 samples
 
     # Random sampling for unbiased evaluation
     df_eval_sample = df_eval.sample(
@@ -380,7 +412,7 @@ for epoch in range(1, epochs + 1):
             # Generate prediction
             prediction = "".join(model.generator(batch_x, max_len=50))
             prediction = prediction.split("=")[-1].replace("<eos>", "")
-            if total < 3:
+            if total < 5:
                 print(
                     f"[{total}] Input: {batch_x:<20} | Pred: {prediction:>8} | GT: {batch_y:>8} | {'✓' if prediction == batch_y else '✗'}"
                 )

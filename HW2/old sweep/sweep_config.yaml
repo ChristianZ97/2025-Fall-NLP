@@ -5,15 +5,15 @@ metric:
   goal: maximize
 early_terminate:
   type: hyperband
-  min_iter: 3
+  min_iter: 2
 parameters:
   lr:
     distribution: log_uniform_values
-    min: 0.0008
-    max: 0.0015
+    min: 0.001
+    max: 0.01
   weight_decay:
     distribution: log_uniform_values
-    min: 0.0025
-    max: 0.001
+    min: 0.0001
+    max: 0.01
   rnn_type:
     values: ['LSTM', 'GRU', 'RNN']
