@@ -339,7 +339,7 @@ optimizer = torch.optim.AdamW(
 
 # Training Loop
 print(f"\n\nUsing device: {device}")
-print(f"RNN Type: {rnn_type}, Hidden Dim: {hidden_dim}")
+print(f"RNN Type: {config.rnn_type}, Hidden Dim: {hidden_dim}")
 print(f"Using random seed: {SEED}\n\n")
 model = model.to(device)
 model.train()
