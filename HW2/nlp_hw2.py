@@ -367,7 +367,7 @@ param_groups = [
 
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
-optimizer = MuonWithAuxAdam(param_groups)
+optimizer = MuonWithAuxAdam(param_groups, rank=0, world_size=1)
 
 
 # Training Loop
