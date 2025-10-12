@@ -23,7 +23,7 @@ import os
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from copy import deepcopy
-from muon import Muon # pip install git+https://github.com/KellerJordan/Muon
+from muon import Muon  # pip install git+https://github.com/KellerJordan/Muon
 
 SEED = int(time.time())
 
@@ -337,21 +337,30 @@ model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=config.rnn_type)
 # model.linear -> head
 
 muon_params = [
-    p for layer in [model.rnnlayer1, model.rnnlayer2] 
-    for p in layer.parameters() if p.ndim >= 2
+    p
+    for layer in [model.rnnlayer1, model.rnnlayer2]
+    for p in layer.parameters()
+    if p.ndim >= 2
 ]
 
 adamw_params = [
     *model.embedding.parameters(),
-    *[p for layer in [model.rnnlayer1, model.rnnlayer2] for p in layer.parameters() if p.ndim < 2],
-    *model.linear.parameters()
+    *[
+        p
+        for layer in [model.rnnlayer1, model.rnnlayer2]
+        for p in layer.parameters()
+        if p.ndim < 2
+    ],
+    *model.linear.parameters(),
 ]
 
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
 optimizers = [
     Muon(muon_params, lr=0.02, momentum=0.95),
-    torch.optim.AdamW(params=adamw_params, lr=config.lr, weight_decay=config.weight_decay)
+    torch.optim.AdamW(
+        params=adamw_params, lr=config.lr, weight_decay=config.weight_decay
+    ),
 ]
 
 # Training Loop
@@ -392,7 +401,7 @@ for epoch in range(1, epochs + 1):
             if p.grad is not None:
                 param_norm = p.grad.data.norm(2)
                 raw_grad_norm += param_norm.item() ** 2
-        raw_grad_norm = raw_grad_norm ** 0.5
+        raw_grad_norm = raw_grad_norm**0.5
         torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip)
 
         # Update parameters
