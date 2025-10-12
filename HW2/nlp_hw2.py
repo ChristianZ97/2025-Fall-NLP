@@ -135,7 +135,7 @@ default_config = {
     "weight_decay": 0.01,
     "rnn_type": "LSTM",  # Options: 'LSTM', 'GRU', 'RNN'
 }
-epochs = 10
+epochs = 5
 batch_size = 128
 grad_clip = 1
 embed_dim = 256
@@ -168,7 +168,7 @@ def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
     h = (-b + math.sqrt(discriminant)) / (2 * a)
     return int(round(h))
 
-hidden_dim = calculate_hidden_dim(rnn_type=config.rnn_type, embed_dim=embed_dim, vocab_size=vocab_size)
+hidden_dim = calculate_hidden_dim(rnn_type=default_config.rnn_type, embed_dim=embed_dim, vocab_size=vocab_size)
 
 model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=rnn_type)
 
