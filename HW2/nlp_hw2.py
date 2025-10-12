@@ -140,6 +140,10 @@ batch_size = 128
 grad_clip = 1
 embed_dim = 256
 
+# Initialize wandb
+wandb.init(project="nlp-hw2-arithmetic", config=default_config)
+config = wandb.config
+
 def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
     """
     - LSTM: 13h² + (4e + v + 17)h + (ve + v)
@@ -168,14 +172,9 @@ def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
     h = (-b + math.sqrt(discriminant)) / (2 * a)
     return int(round(h))
 
-hidden_dim = calculate_hidden_dim(rnn_type=default_config.rnn_type, embed_dim=embed_dim, vocab_size=vocab_size)
+hidden_dim = calculate_hidden_dim(rnn_type=config.rnn_type, embed_dim=embed_dim, vocab_size=vocab_size)
 
 model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=rnn_type)
-
-# Initialize wandb
-wandb.init(project="nlp-hw2-arithmetic", config=default_config)
-config = wandb.config
-
 
 # Dataset class
 class Dataset(torch.utils.data.Dataset):
