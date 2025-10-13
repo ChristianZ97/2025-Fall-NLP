@@ -5,7 +5,7 @@ metric:
   goal: maximize
 early_terminate:
   type: hyperband
-  min_iter: 2
+  min_iter: 1
 parameters:
   lr:
     distribution: log_uniform_values

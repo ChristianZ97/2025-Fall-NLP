@@ -141,11 +141,11 @@ default_config = {
     "lr_muon": 0.001,
     "momentum": 0.95,
     "rnn_type": "LSTM",  # Options: 'LSTM', 'GRU', 'RNN'
-    "batch_size": 128,
 }
 epochs = 5
 grad_clip = 1
 embed_dim = 256
+batch_size = 128
 
 # Initialize wandb
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
@@ -224,7 +224,7 @@ ds_train = Dataset(df_train[["char_id_list", "label_id_list"]])
 # dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 dl_train = torch.utils.data.DataLoader(
     ds_train,
-    batch_size=config.batch_size,
+    batch_size=batch_size,
     shuffle=True,
     collate_fn=collate_fn,
     num_workers=4,
