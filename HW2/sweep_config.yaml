@@ -21,5 +21,3 @@ parameters:
     max: 0.999
   rnn_type:
     values: ['LSTM', 'GRU', 'RNN']
-  batch_size:
-    values: [1024]
