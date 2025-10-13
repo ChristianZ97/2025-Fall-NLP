@@ -20,4 +20,4 @@ parameters:
     min: 0.94
     max: 0.999
   rnn_type:
-    value: ['LSTM', 'GRU', 'RNN']
+    values: ['LSTM', 'GRU', 'RNN']
