@@ -160,7 +160,7 @@ def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
     h_base = 256
     a_lstm = 13
     b_lstm = 4 * embed_dim + vocab_size + 17
-    c_lstm_const = vocab_size * embed_dim + vocab_size
+    c_const = vocab_size * embed_dim + vocab_size
     target_params = a_lstm * h_base**2 + b_lstm * h_base + c_lstm_const
 
     if rnn_type == "LSTM":
