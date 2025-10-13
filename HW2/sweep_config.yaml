@@ -10,14 +10,16 @@ parameters:
   lr:
     distribution: log_uniform_values
     min: 0.00085
-    max: 0.0016
+    max: 0.0015
   weight_decay:
     distribution: log_uniform_values
-    min: 0.0036
-    max: 0.015
+    min: 0.003
+    max: 0.012
   momentum:
     distribution: log_uniform_values
-    min: 0.94
+    min: 0.85
     max: 0.999
   rnn_type:
     values: ['LSTM', 'GRU', 'RNN']
+  batch_size:
+    values: [1024]
