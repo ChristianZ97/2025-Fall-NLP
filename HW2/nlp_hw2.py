@@ -433,7 +433,7 @@ for epoch in range(1, epochs + 1):
     examples = []  # Store prediction examples
 
     # Limit evaluation for faster hyperparameter search
-    eval_limit = min(5000, len(df_eval))  # Evaluate at most 5000 samples
+    eval_limit = min(1000, len(df_eval))  # Evaluate at most 1000 samples
 
     # Random sampling for unbiased evaluation
     df_eval_sample = df_eval.sample(
