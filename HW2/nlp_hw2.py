@@ -136,16 +136,15 @@ df_eval = data_preprocess(df_eval, char_to_id)
 
 # Hyperparameter configuration
 default_config = {
-    "lr_adamw": 0.001,
+    "lr": 0.001,
     "weight_decay": 0.01,
-    "lr_muon": 0.001,
     "momentum": 0.95,
     "rnn_type": "LSTM",  # Options: 'LSTM', 'GRU', 'RNN'
 }
 epochs = 5
 grad_clip = 1
 embed_dim = 256
-batch_size = 128
+batch_size = 256
 
 # Initialize wandb
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
