@@ -136,15 +136,16 @@ df_eval = data_preprocess(df_eval, char_to_id)
 
 # Hyperparameter configuration
 default_config = {
-    "lr": 0.001,
+    "lr_adamw": 0.001,
     "weight_decay": 0.01,
+    "lr_muon": 0.001,
     "momentum": 0.95,
     "rnn_type": "LSTM",  # Options: 'LSTM', 'GRU', 'RNN'
+    "batch_size": 128,
 }
 epochs = 5
 grad_clip = 1
 embed_dim = 256
-batch_size = 1024
 
 # Initialize wandb
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
@@ -223,7 +224,7 @@ ds_train = Dataset(df_train[["char_id_list", "label_id_list"]])
 # dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 dl_train = torch.utils.data.DataLoader(
     ds_train,
-    batch_size=batch_size,
+    batch_size=config.batch_size,
     shuffle=True,
     collate_fn=collate_fn,
     num_workers=4,
@@ -362,8 +363,8 @@ adamw_params = [
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
 optimizers = [
-    SingleDeviceMuon(muon_params, lr=config.lr, momentum=config.momentum),
-    optim.AdamW(adamw_params, lr=config.lr, weight_decay=config.weight_decay),
+    SingleDeviceMuon(muon_params, lr=config.lr_muon, momentum=config.momentum),
+    optim.AdamW(adamw_params, lr=config.lr_adamw, weight_decay=config.weight_decay),
 ]
 
 
@@ -432,7 +433,7 @@ for epoch in range(1, epochs + 1):
     examples = []  # Store prediction examples
 
     # Limit evaluation for faster hyperparameter search
-    eval_limit = min(1000, len(df_eval))  # Evaluate at most 5000 samples
+    eval_limit = min(5000, len(df_eval))  # Evaluate at most 5000 samples
 
     # Random sampling for unbiased evaluation
     df_eval_sample = df_eval.sample(

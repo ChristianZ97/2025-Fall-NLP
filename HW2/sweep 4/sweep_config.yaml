@@ -7,17 +7,23 @@ early_terminate:
   type: hyperband
   min_iter: 2
 parameters:
-  lr:
+  lr_adamw:
     distribution: log_uniform_values
     min: 0.00085
-    max: 0.0016
+    max: 0.0015
   weight_decay:
     distribution: log_uniform_values
-    min: 0.0036
-    max: 0.015
+    min: 0.003
+    max: 0.012
+  lr_muon:
+    distribution: log_uniform_values
+    min: 0.0008
+    max: 0.0015
   momentum:
     distribution: log_uniform_values
-    min: 0.94
+    min: 0.85
     max: 0.999
   rnn_type:
-    value: ['LSTM', 'GRU', 'RNN']
+    values: ['LSTM', 'GRU', 'RNN']
+  batch_size:
+    values: [128, 256, 512]
