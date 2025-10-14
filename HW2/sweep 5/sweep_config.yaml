@@ -1,0 +1,23 @@
+program: nlp_hw2.py
+method: bayes
+metric:
+  name: val_accuracy
+  goal: maximize
+early_terminate:
+  type: hyperband
+  min_iter: 2
+parameters:
+  lr:
+    distribution: log_uniform_values
+    min: 0.00085
+    max: 0.0015
+  weight_decay:
+    distribution: log_uniform_values
+    min: 0.003
+    max: 0.012
+  momentum:
+    distribution: log_uniform_values
+    min: 0.85
+    max: 0.999
+  rnn_type:
+    values: ['LSTM']

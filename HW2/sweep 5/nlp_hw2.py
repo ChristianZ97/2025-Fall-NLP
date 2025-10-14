@@ -27,7 +27,6 @@ import torch.optim as optim
 from muon import (
     SingleDeviceMuon,
 )  # pip install git+https://github.com/KellerJordan/Muon
-from lion_pytorch import Lion  # pip install lion-pytorch
 
 SEED = int(time.time())
 
@@ -46,26 +45,6 @@ df_train["len"] = df_train["src"].apply(lambda x: len(x))
 df_eval["tgt"] = df_eval["tgt"].apply(lambda x: str(x))
 df_eval["src"] = df_eval["src"].add(df_eval["tgt"])
 df_eval["len"] = df_eval["src"].apply(lambda x: len(x))
-
-
-df_train_3digit = df_train[
-    df_train["tgt"].apply(lambda x: 100 <= abs(int(x)) <= 999)
-].copy()
-df_eval_2digit = df_eval[df_eval["tgt"].apply(lambda x: 10 <= abs(int(x)) <= 99)].copy()
-
-df_train_noise = df_train.copy()
-noise_indices = np.random.choice(
-    df_train_noise.index, size=int(len(df_train_noise) * 0.2), replace=False
-)
-for idx in noise_indices:
-    original = str(df_train_noise.loc[idx, "tgt"])
-    if original.startswith("-"):
-        digit_pos = np.random.randint(1, len(original))
-    else:
-        digit_pos = np.random.randint(0, len(original))
-    new_digit = str(np.random.randint(0, 10))
-    modified = original[:digit_pos] + new_digit + original[digit_pos + 1 :]
-    df_train_noise.loc[idx, "tgt"] = modified
 
 # Build Dictionary
 # The model cannot perform calculations directly with plain text.
@@ -154,21 +133,14 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
 
 df_train = data_preprocess(df_train, char_to_id)
 df_eval = data_preprocess(df_eval, char_to_id)
-df_train_3digit = data_preprocess(df_train_3digit, char_to_id)
-df_eval_2digit = data_preprocess(df_eval_2digit, char_to_id)
-df_train_noise = data_preprocess(df_train_noise, char_to_id)
-
 
 # Hyperparameter configuration
 default_config = {
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "momentum": 0.95,
     "rnn_type": "LSTM",  # Options: 'LSTM', 'GRU', 'RNN'
-    "train_mode": "normal",  # Options: 'normal', '3digit_train_2digit_eval', 'noisy_20_train'
-    "optimizer": "adamw",  # Options: 'adamw', 'muon', 'lion', 'rmsprop'
 }
-
-lr = 0.0011554
-weight_decay = 0.0057802
-momentum = 0.98805
 epochs = 5
 grad_clip = 1
 embed_dim = 256
@@ -247,12 +219,6 @@ def collate_fn(batch):
 
 
 # Create DataLoader
-if config.train_mode == "3digit_train_2digit_eval":
-    df_train = df_train_3digit
-    df_eval = df_eval_2digit
-elif config.train_mode == "noisy_20_train":
-    df_train = df_train_noise
-
 ds_train = Dataset(df_train[["char_id_list", "label_id_list"]])
 # dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 dl_train = torch.utils.data.DataLoader(
@@ -395,25 +361,10 @@ adamw_params = [
 
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
-if config.optimizer == "muon":
-    optimizers = [
-        SingleDeviceMuon(muon_params, lr=lr, momentum=momentum),
-        optim.AdamW(adamw_params, lr=lr, weight_decay=weight_decay),
-    ]
-elif config.optimizer == "lion":
-    optimizers = [
-        Lion(model.parameters(), lr=lr, weight_decay=weight_decay),
-    ]
-elif config.optimizer == "rmsprop":
-    optimizers = [
-        optim.RMSprop(
-            model.parameters(), lr=lr, weight_decay=weight_decay, momentum=momentum
-        ),
-    ]
-else:
-    optimizers = [
-        optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay),
-    ]
+optimizers = [
+    SingleDeviceMuon(muon_params, lr=config.lr, momentum=config.momentum),
+    optim.AdamW(adamw_params, lr=config.lr, weight_decay=config.weight_decay),
+]
 
 
 # Training Loop
@@ -479,7 +430,15 @@ for epoch in range(1, epochs + 1):
     matched = 0
     total = 0
     examples = []  # Store prediction examples
-    bar_eval = tqdm(df_eval.iterrows(), desc=f"Validation epoch {epoch}")
+
+    # Limit evaluation for faster hyperparameter search
+    eval_limit = min(1000, len(df_eval))  # Evaluate at most 1000 samples
+
+    # Random sampling for unbiased evaluation
+    df_eval_sample = df_eval.sample(
+        n=eval_limit, random_state=SEED
+    )  # Fixed seed for reproducibility
+    bar_eval = tqdm(df_eval_sample.iterrows(), desc=f"Validation epoch {epoch}")
     print("\n")
     with torch.no_grad():
         for _, row in bar_eval:
