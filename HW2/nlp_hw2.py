@@ -53,19 +53,31 @@ df_train_3digit = df_train[
 ].copy()
 df_eval_2digit = df_eval[df_eval["tgt"].apply(lambda x: 10 <= abs(int(x)) <= 99)].copy()
 
+
+def modify_digit(original):
+    original = str(original)
+    if len(original) == 0:
+        return original
+
+    if original.startswith("-"):
+        if len(original) == 1:
+            return original
+        digit_pos = np.random.randint(1, len(original))
+    else:
+        digit_pos = np.random.randint(0, len(original))
+
+    new_digit = str(np.random.randint(0, 10))
+    modified = original[:digit_pos] + new_digit + original[digit_pos + 1 :]
+    return modified
+
+
 df_train_noise = df_train.copy()
 noise_indices = np.random.choice(
     df_train_noise.index, size=int(len(df_train_noise) * 0.2), replace=False
 )
-for idx in noise_indices:
-    original = str(df_train_noise.loc[idx, "tgt"])
-    if original.startswith("-"):
-        digit_pos = np.random.randint(1, len(original))
-    else:
-        digit_pos = np.random.randint(0, len(original))
-    new_digit = str(np.random.randint(0, 10))
-    modified = original[:digit_pos] + new_digit + original[digit_pos + 1 :]
-    df_train_noise.loc[idx, "tgt"] = modified
+modified_tgt = df_train_noise.loc[noise_indices, "tgt"].apply(modify_digit)
+df_train_noise.loc[noise_indices, "tgt"] = modified_tgt
+
 
 # Build Dictionary
 # The model cannot perform calculations directly with plain text.
