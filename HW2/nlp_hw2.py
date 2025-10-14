@@ -419,8 +419,6 @@ else:
 # Training Loop
 print(f"\n\nUsing device: {device}")
 print(f"RNN Type: {config.rnn_type}, Hidden Dim: {hidden_dim}")
-print(f"Muon will optimize {sum(p.numel() for p in muon_params)} parameters.")
-print(f"AdamW will optimize {sum(p.numel() for p in adamw_params)} parameters.")
 print(f"Using random seed: {SEED}\n\n")
 model = model.to(device)
 model.train()
