@@ -23,7 +23,6 @@ import os
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from copy import deepcopy
-import torch.optim as optim
 from muon import (
     SingleDeviceMuon,
 )  # pip install git+https://github.com/KellerJordan/Muon
@@ -44,8 +43,6 @@ df_train["src"] = df_train["src"].add(df_train["tgt"])
 df_train["len"] = df_train["src"].apply(lambda x: len(x))
 
 df_eval["tgt"] = df_eval["tgt"].apply(lambda x: str(x))
-df_eval["src"] = df_eval["src"].add(df_eval["tgt"])
-df_eval["len"] = df_eval["src"].apply(lambda x: len(x))
 
 
 df_train_3digit = df_train[
@@ -173,24 +170,26 @@ df_train_noise = data_preprocess(df_train_noise, char_to_id)
 
 # Hyperparameter configuration
 default_config = {
-    "rnn_type": "LSTM",  # Options: 'LSTM', 'GRU', 'RNN'
-    "train_mode": "normal",  # Options: 'normal', '3digit_train_2digit_eval', 'noisy_20_train'
-    "optimizer": "adamw",  # Options: 'adamw', 'muon', 'lion', 'rmsprop'
+    "muon_lr": 0.001,
+    "adamw_lr": 0.001,
+    "grad_clip": 1,
+    "batch_size": 256,
 }
 
-lr = 0.0011554
-weight_decay = 0.0057802
-momentum = 0.98805
+# lr = 0.0011554
+# weight_decay = 0.0057802
+# momentum = 0.98805
 epochs = 5
-grad_clip = 1
-embed_dim = 256
-batch_size = 256
+# grad_clip = 1
+embed_dim = 128
+# batch_size = 256
+hidden_dim = 128
 
 # Initialize wandb
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
 config = wandb.config
 
-
+'''
 def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
     """
     - LSTM: 13h² + (4e + v + 17)h + (ve + v)
@@ -223,6 +222,7 @@ def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
 hidden_dim = calculate_hidden_dim(
     rnn_type=config.rnn_type, embed_dim=embed_dim, vocab_size=vocab_size
 )
+'''
 
 
 # Dataset class
@@ -269,10 +269,10 @@ ds_train = Dataset(df_train[["char_id_list", "label_id_list"]])
 # dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 dl_train = torch.utils.data.DataLoader(
     ds_train,
-    batch_size=batch_size,
+    batch_size=config.batch_size,
     shuffle=True,
     collate_fn=collate_fn,
-    num_workers=4,
+    num_workers=os.cpu_count(),
     pin_memory=True,
     persistent_workers=True,
 )
@@ -289,28 +289,12 @@ class CharRNN(torch.nn.Module):
             padding_idx=char_to_id["<pad>"],
         )
 
-        # Select RNN architecture
-        if rnn_type == "LSTM":
-            self.rnn_layer1 = torch.nn.LSTM(
-                input_size=embed_dim, hidden_size=hidden_dim, batch_first=True
-            )
-            self.rnn_layer2 = torch.nn.LSTM(
-                input_size=hidden_dim, hidden_size=hidden_dim, batch_first=True
-            )
-        elif rnn_type == "GRU":
-            self.rnn_layer1 = torch.nn.GRU(
-                input_size=embed_dim, hidden_size=hidden_dim, batch_first=True
-            )
-            self.rnn_layer2 = torch.nn.GRU(
-                input_size=hidden_dim, hidden_size=hidden_dim, batch_first=True
-            )
-        else:  # RNN
-            self.rnn_layer1 = torch.nn.RNN(
-                input_size=embed_dim, hidden_size=hidden_dim, batch_first=True
-            )
-            self.rnn_layer2 = torch.nn.RNN(
-                input_size=hidden_dim, hidden_size=hidden_dim, batch_first=True
-            )
+        self.rnn_layer1 = torch.nn.LSTM(
+            input_size=embed_dim, hidden_size=hidden_dim, batch_first=True
+        )
+        self.rnn_layer2 = torch.nn.LSTM(
+            input_size=hidden_dim, hidden_size=hidden_dim, batch_first=True
+        )
 
         self.linear = torch.nn.Sequential(
             torch.nn.Linear(in_features=hidden_dim, out_features=hidden_dim),
@@ -407,26 +391,10 @@ adamw_params = [
 
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
-if config.optimizer == "muon":
-    optimizers = [
-        SingleDeviceMuon(muon_params, lr=lr, momentum=momentum),
-        optim.AdamW(adamw_params, lr=lr, weight_decay=weight_decay),
-    ]
-elif config.optimizer == "lion":
-    optimizers = [
-        Lion(model.parameters(), lr=lr, weight_decay=weight_decay),
-    ]
-elif config.optimizer == "rmsprop":
-    optimizers = [
-        optim.RMSprop(
-            model.parameters(), lr=lr, weight_decay=weight_decay, momentum=momentum
-        ),
-    ]
-else:
-    optimizers = [
-        optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay),
-    ]
-
+optimizers = [
+    SingleDeviceMuon(muon_params, lr=config.muon_lr),
+    torch.optim.AdamW(adamw_params, lr=config.adamw_lr),
+]
 
 # Training Loop
 print(f"\n\nUsing device: {device}")
@@ -466,7 +434,7 @@ for epoch in range(1, epochs + 1):
                 param_norm = p.grad.data.norm(2)
                 raw_grad_norm += param_norm.item() ** 2
         raw_grad_norm = raw_grad_norm**0.5
-        torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip)
+        torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip=config.grad_clip)
 
         # Update parameters
         for optimizer in optimizers:

@@ -3,10 +3,19 @@ method: bayes
 metric:
   name: val_accuracy
   goal: maximize
+early_terminate:
+  type: hyperband
+  min_iter: 2
 parameters:
-  rnn_type:
-    values: ['LSTM', 'GRU', 'RNN']
-  train_mode:
-    values: ['normal', '3digit_train_2digit_eval', 'noisy_20_train']
-  optimizer:
-    values: ['adamw', 'muon', 'lion', 'rmsprop']
+  muon_lr:
+    distribution: log_uniform_values
+    min: 0.0008
+    max: 0.0016
+  adamw_lr:
+    distribution: log_uniform_values
+    min: 0.0008
+    max: 0.0016
+  grad_clip:
+    values: [0.5, 1, 2]
+  batch_size:
+    values: [128, 256, 512]
