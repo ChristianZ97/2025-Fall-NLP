@@ -162,10 +162,10 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
 
 
 df_train = data_preprocess(df_train, char_to_id)
-df_eval = data_preprocess(df_eval, char_to_id)
-df_train_3digit = data_preprocess(df_train_3digit, char_to_id)
-df_eval_2digit = data_preprocess(df_eval_2digit, char_to_id)
-df_train_noise = data_preprocess(df_train_noise, char_to_id)
+#df_eval = data_preprocess(df_eval, char_to_id)
+#df_train_3digit = data_preprocess(df_train_3digit, char_to_id)
+#df_eval_2digit = data_preprocess(df_eval_2digit, char_to_id)
+#df_train_noise = data_preprocess(df_train_noise, char_to_id)
 
 
 # Hyperparameter configuration
