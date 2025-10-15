@@ -435,7 +435,7 @@ for epoch in range(1, epochs + 1):
                 param_norm = p.grad.data.norm(2)
                 raw_grad_norm += param_norm.item() ** 2
         raw_grad_norm = raw_grad_norm**0.5
-        torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip=config.grad_clip)
+        torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=config.grad_clip)
 
         # Update parameters
         for optimizer in optimizers:
