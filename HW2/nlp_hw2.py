@@ -162,10 +162,10 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
 
 
 df_train = data_preprocess(df_train, char_to_id)
-#df_eval = data_preprocess(df_eval, char_to_id)
-#df_train_3digit = data_preprocess(df_train_3digit, char_to_id)
-#df_eval_2digit = data_preprocess(df_eval_2digit, char_to_id)
-#df_train_noise = data_preprocess(df_train_noise, char_to_id)
+# df_eval = data_preprocess(df_eval, char_to_id)
+# df_train_3digit = data_preprocess(df_train_3digit, char_to_id)
+# df_eval_2digit = data_preprocess(df_eval_2digit, char_to_id)
+# df_train_noise = data_preprocess(df_train_noise, char_to_id)
 
 
 # Hyperparameter configuration
@@ -257,14 +257,15 @@ def collate_fn(batch):
 
     return pad_batch_x, pad_batch_y, batch_x_lens, batch_y_lens
 
-'''
+
+"""
 # Create DataLoader
 if config.train_mode == "3digit_train_2digit_eval":
     df_train = df_train_3digit
     df_eval = df_eval_2digit
 elif config.train_mode == "noisy_20_train":
     df_train = df_train_noise
-'''
+"""
 ds_train = Dataset(df_train[["char_id_list", "label_id_list"]])
 # dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 dl_train = torch.utils.data.DataLoader(
@@ -280,7 +281,7 @@ dl_train = torch.utils.data.DataLoader(
 
 # Model Definition
 class CharRNN(torch.nn.Module):
-    def __init__(self, vocab_size, embed_dim, hidden_dim, rnn_type="LSTM"):
+    def __init__(self, vocab_size, embed_dim, hidden_dim):
         super(CharRNN, self).__init__()
 
         self.embedding = torch.nn.Embedding(
@@ -364,7 +365,7 @@ torch.manual_seed(SEED)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Initialize model
-model = CharRNN(vocab_size, embed_dim, hidden_dim, rnn_type=config.rnn_type)
+model = CharRNN(vocab_size, embed_dim, hidden_dim)
 
 # model.embedding -> embed
 # model.rnnlayer1, model.rnnlayer2 -> body
@@ -398,7 +399,7 @@ optimizers = [
 
 # Training Loop
 print(f"\n\nUsing device: {device}")
-print(f"RNN Type: {config.rnn_type}, Hidden Dim: {hidden_dim}")
+# print(f"RNN Type: {config.rnn_type}, Hidden Dim: {hidden_dim}")
 print(f"Using random seed: {SEED}\n\n")
 model = model.to(device)
 model.train()
