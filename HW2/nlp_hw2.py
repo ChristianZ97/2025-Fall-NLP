@@ -257,14 +257,14 @@ def collate_fn(batch):
 
     return pad_batch_x, pad_batch_y, batch_x_lens, batch_y_lens
 
-
+'''
 # Create DataLoader
 if config.train_mode == "3digit_train_2digit_eval":
     df_train = df_train_3digit
     df_eval = df_eval_2digit
 elif config.train_mode == "noisy_20_train":
     df_train = df_train_noise
-
+'''
 ds_train = Dataset(df_train[["char_id_list", "label_id_list"]])
 # dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 dl_train = torch.utils.data.DataLoader(
