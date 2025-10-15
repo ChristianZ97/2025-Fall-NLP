@@ -458,7 +458,10 @@ for epoch in range(1, epochs + 1):
     matched = 0
     total = 0
     examples = []  # Store prediction examples
-    bar_eval = tqdm(df_eval.iterrows(), desc=f"Validation epoch {epoch}")
+    bar_eval = tqdm(
+        df_eval.sample(frac=0.1, random_state=SEED).iterrows(),
+        desc=f"Validation epoch {epoch}",
+    )
     print("\n")
     with torch.no_grad():
         for _, row in bar_eval:
