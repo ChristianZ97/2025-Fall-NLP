@@ -28,8 +28,7 @@ from muon import (
 )  # pip install git+https://github.com/KellerJordan/Muon
 from lion_pytorch import Lion  # pip install lion-pytorch
 
-# SEED = int(time.time())
-SEED = 42
+SEED = int(time.time())
 
 # Data path configuration
 data_path = "./"
@@ -170,16 +169,21 @@ df_train = data_preprocess(df_train, char_to_id)
 
 
 # Hyperparameter configuration
-default_config = {"muon_lr": 0.001, "adamw_lr": 0.001}
+default_config = {
+    "muon_lr": 0.001,
+    "adamw_lr": 0.001,
+    "grad_clip": 1,
+    "batch_size": 256,
+}
 
 # lr = 0.0011554
 # weight_decay = 0.0057802
 # momentum = 0.98805
-epochs = 2
-grad_clip = 1
-embed_dim = 256
-batch_size = 64
-hidden_dim = 256
+epochs = 5
+# grad_clip = 1
+embed_dim = 128
+# batch_size = 256
+hidden_dim = 128
 
 # Initialize wandb
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
@@ -266,7 +270,7 @@ ds_train = Dataset(df_train[["char_id_list", "label_id_list"]])
 # dl_train = torch.utils.data.DataLoader(ds_train, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 dl_train = torch.utils.data.DataLoader(
     ds_train,
-    batch_size=batch_size,
+    batch_size=config.batch_size,
     shuffle=True,
     collate_fn=collate_fn,
     num_workers=os.cpu_count(),
@@ -431,7 +435,7 @@ for epoch in range(1, epochs + 1):
                 param_norm = p.grad.data.norm(2)
                 raw_grad_norm += param_norm.item() ** 2
         raw_grad_norm = raw_grad_norm**0.5
-        torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=grad_clip)
+        torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=config.grad_clip)
 
         # Update parameters
         for optimizer in optimizers:

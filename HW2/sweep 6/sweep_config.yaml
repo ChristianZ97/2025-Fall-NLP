@@ -6,9 +6,13 @@ metric:
 parameters:
   muon_lr:
     distribution: log_uniform_values
-    min: 0.00015
-    max: 0.002
+    min: 0.0008
+    max: 0.0016
   adamw_lr:
     distribution: log_uniform_values
-    min: 0.00015
-    max: 0.002
+    min: 0.0008
+    max: 0.0016
+  grad_clip:
+    values: [0.5, 1, 2]
+  batch_size:
+    values: [128, 256, 512]
