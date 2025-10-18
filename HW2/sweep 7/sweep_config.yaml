@@ -1,0 +1,14 @@
+program: nlp_hw2.py
+method: bayes
+metric:
+  name: val_accuracy
+  goal: maximize
+parameters:
+  muon_lr:
+    distribution: log_uniform_values
+    min: 0.00015
+    max: 0.002
+  adamw_lr:
+    distribution: log_uniform_values
+    min: 0.00015
+    max: 0.002
