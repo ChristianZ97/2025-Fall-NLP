@@ -2,8 +2,6 @@
 
 LOG_FILE="nlp_hw2_$(date +%Y%m%d_%H%M%S).log"
 
-conda activate nlp
-
 {
     echo "=== Start: $(date) ==="
     python nlp_hw2_colab.py

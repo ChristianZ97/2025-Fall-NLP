@@ -371,7 +371,7 @@ model = CharRNN(vocab_size,
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
 
 
-! pip install git+https://github.com/KellerJordan/Muon
+#! pip install git+https://github.com/KellerJordan/Muon
 from muon import SingleDeviceMuon
 
 muon_params = [
