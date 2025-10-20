@@ -7,10 +7,10 @@ Original file is located at
     https://colab.research.google.com/drive/1QKKeB3nDbYgHxN-MNbdVFPNBduWHKv5s
 """
 
-#from google.colab import drive
-#drive.mount('/content/drive')
+# from google.colab import drive
+# drive.mount('/content/drive')
 
-#%cd /content/drive/MyDrive/Colab\ Notebooks/NLP/HW2/
+# %cd /content/drive/MyDrive/Colab\ Notebooks/NLP/HW2/
 
 """# LSTM-arithmetic
 
@@ -34,22 +34,29 @@ import opencc
 import os
 from sklearn.model_selection import train_test_split
 
-data_path = './data'
+import time
+from nlp_hw2_colab import SEED, set_seed
 
-df_train = pd.read_csv(os.path.join(data_path, 'arithmetic_train.csv'))
-df_eval = pd.read_csv(os.path.join(data_path, 'arithmetic_eval.csv'))
+set_seed(SEED)
+
+data_path = "./data"
+
+df_train = pd.read_csv(os.path.join(data_path, "arithmetic_train.csv"))
+df_eval = pd.read_csv(os.path.join(data_path, "arithmetic_eval.csv"))
 df_train.head()
 
 # transform the input data to string
-df_train['tgt'] = df_train['tgt'].apply(lambda x: str(x))
-df_train['src'] = df_train['src'].add(df_train['tgt'])
-df_train['len'] = df_train['src'].apply(lambda x: len(x))
+df_train["tgt"] = df_train["tgt"].apply(lambda x: str(x))
+df_train["src"] = df_train["src"].add(df_train["tgt"])
+df_train["len"] = df_train["src"].apply(lambda x: len(x))
 
-df_eval['tgt'] = df_eval['tgt'].apply(lambda x: str(x))
+df_eval["tgt"] = df_eval["tgt"].apply(lambda x: str(x))
 
 mask = np.random.choice(df_train.index, size=int(len(df_train) * 0.2), replace=False)
-df_train.loc[mask, 'tgt'] = df_train.loc[mask, 'tgt'].apply(lambda x: str(int(x) + np.random.randint(-50, 51)))
-df_train['src'] = df_train['src'].str.split('=').str[0] + '=' + df_train['tgt']
+df_train.loc[mask, "tgt"] = df_train.loc[mask, "tgt"].apply(
+    lambda x: str(int(x) + np.random.randint(-50, 51))
+)
+df_train["src"] = df_train["src"].str.split("=").str[0] + "=" + df_train["tgt"]
 
 """# Build Dictionary
  - The model cannot perform calculations directly with plain text.
@@ -96,7 +103,7 @@ char_to_id = {char: idx for idx, char in enumerate(all_tokens)}
 id_to_char = {idx: char for idx, char in enumerate(all_tokens)}
 
 vocab_size = len(char_to_id)
-print('Vocab size{}'.format(vocab_size))
+print("Vocab size{}".format(vocab_size))
 
 """# Data Preprocessing
  - The data is processed into the format required for the model's input and output. (End with \<eos\> token)
@@ -104,6 +111,7 @@ print('Vocab size{}'.format(vocab_size))
 """
 
 # Write your code here
+
 
 def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
     df = df.copy()
@@ -189,6 +197,7 @@ grad_clip = 1
     - The key for the model's output is that the model does not need to predict the next character of the previous part. What matters is that once the model sees '=', it should start generating the answer, which is '0'. After generating the answer, it should also generate&lt;eos&gt;
 """
 
+
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, sequences):
         self.sequences = sequences
@@ -208,6 +217,7 @@ class Dataset(torch.utils.data.Dataset):
         y = self.sequences.iloc[index]["label_id_list"]
         return x, y
 
+
 # collate function, used to build dataloader
 def collate_fn(batch):
     batch_x = [torch.tensor(data[0]) for data in batch]
@@ -216,17 +226,18 @@ def collate_fn(batch):
     batch_y_lens = torch.LongTensor([len(y) for y in batch_y])
 
     # Pad the input sequence
-    pad_batch_x = torch.nn.utils.rnn.pad_sequence(batch_x,
-                                                  batch_first=True,
-                                                  padding_value=char_to_id['<pad>'])
+    pad_batch_x = torch.nn.utils.rnn.pad_sequence(
+        batch_x, batch_first=True, padding_value=char_to_id["<pad>"]
+    )
 
-    pad_batch_y = torch.nn.utils.rnn.pad_sequence(batch_y,
-                                                  batch_first=True,
-                                                  padding_value=char_to_id['<pad>'])
+    pad_batch_y = torch.nn.utils.rnn.pad_sequence(
+        batch_y, batch_first=True, padding_value=char_to_id["<pad>"]
+    )
 
     return pad_batch_x, pad_batch_y, batch_x_lens, batch_y_lens
 
-ds_train = Dataset(df_train[['char_id_list', 'label_id_list']])
+
+ds_train = Dataset(df_train[["char_id_list", "label_id_list"]])
 
 # Build dataloader of train set and eval set, collate_fn is the collate function
 # dl_train = # Write your code here
@@ -257,27 +268,30 @@ Since this is a classification task, Cross Entropy is used as the loss function.
 Adam algorithm is used for gradient updates.
 """
 
+
 class CharRNN(torch.nn.Module):
     def __init__(self, vocab_size, embed_dim, hidden_dim):
         super(CharRNN, self).__init__()
 
-        self.embedding = torch.nn.Embedding(num_embeddings=vocab_size,
-                                            embedding_dim=embed_dim,
-                                            padding_idx=char_to_id['<pad>'])
+        self.embedding = torch.nn.Embedding(
+            num_embeddings=vocab_size,
+            embedding_dim=embed_dim,
+            padding_idx=char_to_id["<pad>"],
+        )
 
-        self.rnn_layer1 = torch.nn.LSTM(input_size=embed_dim,
-                                        hidden_size=hidden_dim,
-                                        batch_first=True)
+        self.rnn_layer1 = torch.nn.LSTM(
+            input_size=embed_dim, hidden_size=hidden_dim, batch_first=True
+        )
 
-        self.rnn_layer2 = torch.nn.LSTM(input_size=hidden_dim,
-                                        hidden_size=hidden_dim,
-                                        batch_first=True)
+        self.rnn_layer2 = torch.nn.LSTM(
+            input_size=hidden_dim, hidden_size=hidden_dim, batch_first=True
+        )
 
-        self.linear = torch.nn.Sequential(torch.nn.Linear(in_features=hidden_dim,
-                                                          out_features=hidden_dim),
-                                          torch.nn.ReLU(),
-                                          torch.nn.Linear(in_features=hidden_dim,
-                                                          out_features=vocab_size))
+        self.linear = torch.nn.Sequential(
+            torch.nn.Linear(in_features=hidden_dim, out_features=hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(in_features=hidden_dim, out_features=vocab_size),
+        )
 
     def forward(self, batch_x, batch_x_lens):
         return self.encoder(batch_x, batch_x_lens)
@@ -286,16 +300,14 @@ class CharRNN(torch.nn.Module):
     def encoder(self, batch_x, batch_x_lens):
         batch_x = self.embedding(batch_x)
 
-        batch_x = torch.nn.utils.rnn.pack_padded_sequence(batch_x,
-                                                          batch_x_lens,
-                                                          batch_first=True,
-                                                          enforce_sorted=False)
+        batch_x = torch.nn.utils.rnn.pack_padded_sequence(
+            batch_x, batch_x_lens, batch_first=True, enforce_sorted=False
+        )
 
         batch_x, _ = self.rnn_layer1(batch_x)
         batch_x, _ = self.rnn_layer2(batch_x)
 
-        batch_x, _ = torch.nn.utils.rnn.pad_packed_sequence(batch_x,
-                                                            batch_first=True)
+        batch_x, _ = torch.nn.utils.rnn.pad_packed_sequence(batch_x, batch_first=True)
 
         batch_x = self.linear(batch_x)
 
@@ -322,23 +334,22 @@ class CharRNN(torch.nn.Module):
 
             next_char = torch.argmax(logits, dim=-1).item()
 
-            if next_char == char_to_id['<eos>']:
+            if next_char == char_to_id["<eos>"]:
                 break
 
             char_list.append(next_char)
 
         return [id_to_char[ch_id] for ch_id in char_list]
 
-torch.manual_seed(2)
+
+# torch.manual_seed(2)
 
 
 # device = # Write your code here. Specify a device (cuda or cpu)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-model = CharRNN(vocab_size,
-                embed_dim,
-                hidden_dim)
+model = CharRNN(vocab_size, embed_dim, hidden_dim)
 
 # criterion = # Write your code here. Cross-entropy loss function. The loss function should ignore <pad>
 # optimizer = # Write your code here. Use Adam or AdamW for Optimizer
@@ -385,11 +396,14 @@ optimizers = [
 
 from tqdm import tqdm
 from copy import deepcopy
+
 model = model.to(device)
 model.train()
 i = 0
-print(f"\n\nLSTM w/ {sum(p.numel() for p in model.parameters() if p.requires_grad)} trainable params + Noise Dataset")
-for epoch in range(1, epochs+1):
+print(
+    f"\n\nLSTM w/ {sum(p.numel() for p in model.parameters() if p.requires_grad)} trainable params + Noise Dataset"
+)
+for epoch in range(1, epochs + 1):
     # The process bar
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")
     for batch_x, batch_y, batch_x_lens, batch_y_lens in bar:
@@ -410,7 +424,9 @@ for epoch in range(1, epochs+1):
         loss = criterion(batch_pred_y.view(-1, vocab_size), batch_y.view(-1))
         loss.backward()
 
-        torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip) # gradient clipping
+        torch.nn.utils.clip_grad_value_(
+            model.parameters(), grad_clip
+        )  # gradient clipping
 
         # Write your code here
         # Optimize parameters in the model
@@ -418,17 +434,17 @@ for epoch in range(1, epochs+1):
         for optimizer in optimizers:
             optimizer.step()
 
-        i+=1
-        if i%50==0:
-            bar.set_postfix(loss = loss.item())
+        i += 1
+        if i % 50 == 0:
+            bar.set_postfix(loss=loss.item())
 
     # Evaluate your model
     matched = 0
     total = 0
     bar_eval = tqdm(df_eval.iterrows(), desc=f"Validation epoch {epoch}")
     for _, row in bar_eval:
-        batch_x = row['src']
-        batch_y = row['tgt']
+        batch_x = row["src"]
+        batch_y = row["tgt"]
 
         # prediction = # An example of using generator: model.generator('1+1=')
 
@@ -444,4 +460,4 @@ for epoch in range(1, epochs+1):
         matched += is_correct
         total += 1
 
-    print(matched/total)
+    print(matched / total)
