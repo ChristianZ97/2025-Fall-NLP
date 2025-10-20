@@ -7,11 +7,10 @@ Original file is located at
     https://colab.research.google.com/drive/1nVNxL_0yGX2MZyTBbu5U-kflmhCYNtMS
 """
 
-# Commented out IPython magic to ensure Python compatibility.
 #from google.colab import drive
 #drive.mount('/content/drive')
 
-# %cd /content/drive/MyDrive/Colab\ Notebooks/NLP/HW2/
+#%cd /content/drive/MyDrive/Colab\ Notebooks/NLP/HW2/
 
 """# LSTM-arithmetic
 
@@ -48,10 +47,8 @@ df_train['len'] = df_train['src'].apply(lambda x: len(x))
 
 df_eval['tgt'] = df_eval['tgt'].apply(lambda x: str(x))
 
-df_train_3digit = df_train[
-    df_train["tgt"].apply(lambda x: 100 <= abs(int(x)) <= 999)
-].copy()
-df_eval_2digit = df_eval[df_eval["tgt"].apply(lambda x: 10 <= abs(int(x)) <= 99)].copy()
+df_train = df_train[df_train['tgt'].apply(lambda x: 100 <= abs(int(x)) <= 999)]
+df_eval = df_eval[df_eval['tgt'].apply(lambda x: 10 <= abs(int(x)) <= 99)]
 
 """# Build Dictionary
  - The model cannot perform calculations directly with plain text.
@@ -158,11 +155,6 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
 
 
 df_train = data_preprocess(df_train, char_to_id)
-df_train_3digit = data_preprocess(df_train_3digit, char_to_id)
-
-df_train = df_train_3digit
-df_eval = df_eval_2digit
-
 df_train.head()
 
 """# Hyper Parameters
@@ -395,7 +387,7 @@ from copy import deepcopy
 model = model.to(device)
 model.train()
 i = 0
-print("\n\nLSTM + 3 Digits Dataset")
+print(f"\n\nLSTM w/ {sum(p.numel() for p in model.parameters() if p.requires_grad)} trainable params + 3 Digits Dataset")
 for epoch in range(1, epochs+1):
     # The process bar
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")
@@ -433,27 +425,22 @@ for epoch in range(1, epochs+1):
     matched = 0
     total = 0
     bar_eval = tqdm(df_eval.iterrows(), desc=f"Validation epoch {epoch}")
-    with torch.no_grad():
-        for _, row in bar_eval:
-            batch_x = row['src']
-            batch_y = row['tgt']
+    for _, row in bar_eval:
+        batch_x = row['src']
+        batch_y = row['tgt']
 
-            # prediction = # An example of using generator: model.generator('1+1=')
+        # prediction = # An example of using generator: model.generator('1+1=')
 
-            # Write your code here. Input the batch_x to the model and generate the predictions
-            # Write your code here.
-            # Check whether the prediction match the ground truths
-            # Compute exact match (EM) on the eval dataset
-            # EM = correct/total
+        # Write your code here. Input the batch_x to the model and generate the predictions
+        # Write your code here.
+        # Check whether the prediction match the ground truths
+        # Compute exact match (EM) on the eval dataset
+        # EM = correct/total
 
-            prediction = "".join(model.generator(batch_x, max_len=50))
-            prediction = prediction.split("=")[-1].replace("<eos>", "")
-            is_correct = int(prediction == batch_y)
-            if total < 10:
-                print(
-                    f"[{total}] Input: {batch_x:<20} | Pred: {prediction:>8} | GT: {batch_y:>8} | {'✓' if is_correct else '✗'}"
-                )
-            matched += is_correct
-            total += 1
+        prediction = "".join(model.generator(batch_x, max_len=50))
+        prediction = prediction.split("=")[-1].replace("<eos>", "")
+        is_correct = int(prediction == batch_y)
+        matched += is_correct
+        total += 1
 
     print(matched/total)

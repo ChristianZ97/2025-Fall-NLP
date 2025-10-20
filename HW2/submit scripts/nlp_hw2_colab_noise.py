@@ -7,11 +7,10 @@ Original file is located at
     https://colab.research.google.com/drive/1QKKeB3nDbYgHxN-MNbdVFPNBduWHKv5s
 """
 
-# Commented out IPython magic to ensure Python compatibility.
 #from google.colab import drive
 #drive.mount('/content/drive')
 
-# %cd /content/drive/MyDrive/Colab\ Notebooks/NLP/HW2/
+#%cd /content/drive/MyDrive/Colab\ Notebooks/NLP/HW2/
 
 """# LSTM-arithmetic
 
@@ -48,26 +47,9 @@ df_train['len'] = df_train['src'].apply(lambda x: len(x))
 
 df_eval['tgt'] = df_eval['tgt'].apply(lambda x: str(x))
 
-def random_same_length(x):
-    s = str(x)
-    if s.startswith("-"):
-        length = len(s) - 1
-        low, high = 10 ** (length - 1), 10 ** length - 1
-        new_int = -np.random.randint(low, high + 1)
-    else:
-        length = len(s)
-        if length == 0:
-            return s
-        elif length == 1:
-            options = [d for d in range(10) if d != int(s)]
-            return str(np.random.choice(options))
-        low, high = 10 ** (length - 1), 10 ** length - 1
-        new_int = np.random.randint(low, high + 1)
-    return str(new_int)
-
-df_train_noise = df_train.copy()
-mask = np.random.rand(len(df_train_noise)) < 0.2
-df_train_noise.loc[mask, "tgt"] = df_train_noise.loc[mask, "tgt"].apply(random_same_length)
+mask = np.random.choice(df_train.index, size=int(len(df_train) * 0.2), replace=False)
+df_train.loc[mask, 'tgt'] = df_train.loc[mask, 'tgt'].apply(lambda x: str(int(x) + np.random.randint(-50, 51)))
+df_train['src'] = df_train['src'].str.split('=').str[0] + '=' + df_train['tgt']
 
 """# Build Dictionary
  - The model cannot perform calculations directly with plain text.
@@ -174,10 +156,6 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
 
 
 df_train = data_preprocess(df_train, char_to_id)
-df_train_noise = data_preprocess(df_train_noise, char_to_id)
-
-df_train = df_train_noise
-
 df_train.head()
 
 """# Hyper Parameters
@@ -192,13 +170,13 @@ df_train.head()
 |`grad_clip`|To prevent gradient explosion in RNNs, restrict the gradient range|1|
 """
 
-batch_size = 64
-epochs = 2
+batch_size = 256
+epochs = 5
 embed_dim = 256
 hidden_dim = 256
-#lr = 0.001
-adamw_lr = 0.00026231
-muon_lr = 0.0014902
+lr = 0.0011554
+weight_decay = 0.0057802
+momentum = 0.98805
 grad_clip = 1
 
 """# Data Batching
@@ -351,8 +329,8 @@ class CharRNN(torch.nn.Module):
 
         return [id_to_char[ch_id] for ch_id in char_list]
 
-#torch.manual_seed(2)
-torch.manual_seed(42)
+torch.manual_seed(2)
+
 
 # device = # Write your code here. Specify a device (cuda or cpu)
 
@@ -390,8 +368,8 @@ adamw_params = [
 ]
 
 optimizers = [
-    SingleDeviceMuon(muon_params, lr=muon_lr),
-    torch.optim.AdamW(adamw_params, lr=adamw_lr),
+    SingleDeviceMuon(muon_params, lr=lr, momentum=momentum),
+    torch.optim.AdamW(adamw_params, lr=lr, weight_decay=weight_decay),
 ]
 
 """# Training
@@ -410,7 +388,7 @@ from copy import deepcopy
 model = model.to(device)
 model.train()
 i = 0
-print("\n\nLSTM + Noised Dataset")
+print(f"\n\nLSTM w/ {sum(p.numel() for p in model.parameters() if p.requires_grad)} trainable params + Noise Dataset")
 for epoch in range(1, epochs+1):
     # The process bar
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")
@@ -448,27 +426,22 @@ for epoch in range(1, epochs+1):
     matched = 0
     total = 0
     bar_eval = tqdm(df_eval.iterrows(), desc=f"Validation epoch {epoch}")
-    with torch.no_grad():
-        for _, row in bar_eval:
-            batch_x = row['src']
-            batch_y = row['tgt']
+    for _, row in bar_eval:
+        batch_x = row['src']
+        batch_y = row['tgt']
 
-            # prediction = # An example of using generator: model.generator('1+1=')
+        # prediction = # An example of using generator: model.generator('1+1=')
 
-            # Write your code here. Input the batch_x to the model and generate the predictions
-            # Write your code here.
-            # Check whether the prediction match the ground truths
-            # Compute exact match (EM) on the eval dataset
-            # EM = correct/total
+        # Write your code here. Input the batch_x to the model and generate the predictions
+        # Write your code here.
+        # Check whether the prediction match the ground truths
+        # Compute exact match (EM) on the eval dataset
+        # EM = correct/total
 
-            prediction = "".join(model.generator(batch_x, max_len=50))
-            prediction = prediction.split("=")[-1].replace("<eos>", "")
-            is_correct = int(prediction == batch_y)
-            if total < 10:
-                print(
-                    f"[{total}] Input: {batch_x:<20} | Pred: {prediction:>8} | GT: {batch_y:>8} | {'✓' if is_correct else '✗'}"
-                )
-            matched += is_correct
-            total += 1
+        prediction = "".join(model.generator(batch_x, max_len=50))
+        prediction = prediction.split("=")[-1].replace("<eos>", "")
+        is_correct = int(prediction == batch_y)
+        matched += is_correct
+        total += 1
 
     print(matched/total)
