@@ -22,7 +22,6 @@ Original file is located at
 #! pip install opencc
 #! pip install -U scikit-learn
 
-import math
 import numpy as np
 import pandas as pd
 import torch
@@ -35,7 +34,9 @@ import opencc
 import os
 from sklearn.model_selection import train_test_split
 
+import math
 import time
+import random
 from nlp_hw2_colab import SEED, set_seed
 
 set_seed(SEED)

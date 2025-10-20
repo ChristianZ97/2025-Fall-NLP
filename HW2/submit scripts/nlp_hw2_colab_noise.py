@@ -35,6 +35,7 @@ import os
 from sklearn.model_selection import train_test_split
 
 import time
+import random
 from nlp_hw2_colab import SEED, set_seed
 
 set_seed(SEED)
