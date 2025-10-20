@@ -48,29 +48,26 @@ df_train['len'] = df_train['src'].apply(lambda x: len(x))
 
 df_eval['tgt'] = df_eval['tgt'].apply(lambda x: str(x))
 
-def modify_digit(original):
-    original = str(original)
-    if len(original) == 0:
-        return original
-
-    if original.startswith("-"):
-        if len(original) == 1:
-            return original
-        digit_pos = np.random.randint(1, len(original))
+def random_same_length(x):
+    s = str(x)
+    if s.startswith("-"):
+        length = len(s) - 1
+        low, high = 10 ** (length - 1), 10 ** length - 1
+        new_int = -np.random.randint(low, high + 1)
     else:
-        digit_pos = np.random.randint(0, len(original))
-
-    new_digit = str(np.random.randint(0, 10))
-    modified = original[:digit_pos] + new_digit + original[digit_pos + 1 :]
-    return modified
-
+        length = len(s)
+        if length == 0:
+            return s
+        elif length == 1:
+            options = [d for d in range(10) if d != int(s)]
+            return str(np.random.choice(options))
+        low, high = 10 ** (length - 1), 10 ** length - 1
+        new_int = np.random.randint(low, high + 1)
+    return str(new_int)
 
 df_train_noise = df_train.copy()
-noise_indices = np.random.choice(
-    df_train_noise.index, size=int(len(df_train_noise) * 0.2), replace=False
-)
-modified_tgt = df_train_noise.loc[noise_indices, "tgt"].apply(modify_digit)
-df_train_noise.loc[noise_indices, "tgt"] = modified_tgt
+mask = np.random.rand(len(df_train_noise)) < 0.2
+df_train_noise.loc[mask, "tgt"] = df_train_noise.loc[mask, "tgt"].apply(random_same_length)
 
 """# Build Dictionary
  - The model cannot perform calculations directly with plain text.
@@ -413,6 +410,7 @@ from copy import deepcopy
 model = model.to(device)
 model.train()
 i = 0
+print("\n\nLSTM + Noised Dataset")
 for epoch in range(1, epochs+1):
     # The process bar
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")

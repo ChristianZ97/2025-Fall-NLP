@@ -421,6 +421,7 @@ from copy import deepcopy
 model = model.to(device)
 model.train()
 i = 0
+print("\n\nGRU + Original Dataset")
 for epoch in range(1, epochs+1):
     # The process bar
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")
