@@ -453,29 +453,30 @@ for epoch in range(1, epochs + 1):
             bar.set_postfix(loss=loss.item())
 
     # Evaluate your model
-    matched = 0
-    total = 0
-    bar_eval = tqdm(df_eval.iterrows(), desc=f"Validation epoch {epoch}")
-    for _, row in bar_eval:
-        batch_x = row["src"]
-        batch_y = row["tgt"]
+    with torch.no_grad():
+        matched = 0
+        total = 0
+        bar_eval = tqdm(df_eval.iterrows(), desc=f"Validation epoch {epoch}")
+        for _, row in bar_eval:
+            batch_x = row["src"]
+            batch_y = row["tgt"]
 
-        # prediction = # An example of using generator: model.generator('1+1=')
+            # prediction = # An example of using generator: model.generator('1+1=')
 
-        # Write your code here. Input the batch_x to the model and generate the predictions
-        # Write your code here.
-        # Check whether the prediction match the ground truths
-        # Compute exact match (EM) on the eval dataset
-        # EM = correct/total
+            # Write your code here. Input the batch_x to the model and generate the predictions
+            # Write your code here.
+            # Check whether the prediction match the ground truths
+            # Compute exact match (EM) on the eval dataset
+            # EM = correct/total
 
-        prediction = "".join(model.generator(batch_x, max_len=50))
-        prediction = prediction.split("=")[-1].replace("<eos>", "")
-        is_correct = int(prediction == batch_y)
-        if total < 10:
-            print(
-                f"[{total}] Input: {batch_x:<20} | Pred: {prediction:>8} | GT: {batch_y:>8} | {'✓' if is_correct else '✗'}"
-            )
-        matched += is_correct
-        total += 1
+            prediction = "".join(model.generator(batch_x, max_len=50))
+            prediction = prediction.split("=")[-1].replace("<eos>", "")
+            is_correct = int(prediction == batch_y)
+            if total < 10:
+                print(
+                    f"[{total}] Input: {batch_x:<20} | Pred: {prediction:>8} | GT: {batch_y:>8} | {'✓' if is_correct else '✗'}"
+                )
+            matched += is_correct
+            total += 1
 
     print(matched / total)
