@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LOG_FILE="nlp_hw2_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="nlp_hw2_$(LC_ALL=C date +%Y%m%d_%H%M%S).log"
 
 {
     echo "=== Start: $(date) ==="
