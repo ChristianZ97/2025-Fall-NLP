@@ -193,7 +193,6 @@ batch_size = 64
 epochs = 2
 embed_dim = 256
 hidden_dim = 256
-# lr = 0.001
 adamw_lr = 0.00026231
 muon_lr = 0.0014902
 grad_clip = 1

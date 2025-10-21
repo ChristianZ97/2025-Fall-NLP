@@ -192,13 +192,12 @@ df_train.head()
 |`grad_clip`|To prevent gradient explosion in RNNs, restrict the gradient range|1|
 """
 
-batch_size = 256
-epochs = 5
+batch_size = 64
+epochs = 2
 embed_dim = 256
 hidden_dim = 256
-lr = 0.0011554
-weight_decay = 0.0057802
-momentum = 0.98805
+adamw_lr = 0.00026231
+muon_lr = 0.0014902
 grad_clip = 1
 
 """# Data Batching
