@@ -37,9 +37,8 @@ from sklearn.model_selection import train_test_split
 import time
 import random
 
-SEED = int(time.time())
 
-
+# SEED = int(time.time())
 def set_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
@@ -49,10 +48,10 @@ def set_seed(seed=42):
         torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    print(f"Using random seed {seed}")
+    print(f"\n\nUsing random seed {seed}")
 
 
-set_seed(SEED)
+set_seed()
 
 data_path = "./data"
 
@@ -115,7 +114,7 @@ vocab_size = len(char_to_id)
 print("Vocab size{}".format(vocab_size))
 
 """# Data Preprocessing
- - The data is processed into the format required for the model's input and output. (End with \<eos\> token)
+ - The data is processed into the format required for the model's input and output. (End with \\<eos\\> token)
 
 """
 
@@ -411,7 +410,7 @@ model = model.to(device)
 model.train()
 i = 0
 print(
-    f"\n\nLSTM w/ {sum(p.numel() for p in model.parameters() if p.requires_grad)} trainable params + Original Dataset"
+    f"LSTM w/ {sum(p.numel() for p in model.parameters() if p.requires_grad)} trainable params + Original Dataset"
 )
 for epoch in range(1, epochs + 1):
     # The process bar
@@ -467,6 +466,10 @@ for epoch in range(1, epochs + 1):
         prediction = "".join(model.generator(batch_x, max_len=50))
         prediction = prediction.split("=")[-1].replace("<eos>", "")
         is_correct = int(prediction == batch_y)
+        if total < 10:
+            print(
+                f"[{total}] Input: {batch_x:<20} | Pred: {prediction:>8} | GT: {batch_y:>8} | {'✓' if is_correct else '✗'}"
+            )
         matched += is_correct
         total += 1
 
