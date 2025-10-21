@@ -392,8 +392,8 @@ adamw_params = [
 ]
 
 optimizers = [
-    SingleDeviceMuon(muon_params, lr=lr),
-    torch.optim.AdamW(adamw_params, lr=lr),
+    SingleDeviceMuon(muon_params, lr=muon_lr),
+    torch.optim.AdamW(adamw_params, lr=adamw_lr),
 ]
 
 """# Training
