@@ -82,12 +82,12 @@ def check_numbers_in_range(src, min_val, max_val):
 df_train = df_train[
     df_train["tgt"].apply(lambda x: 100 <= abs(int(x)) <= 999)
     & df_train["src"].apply(lambda x: check_numbers_in_range(x, 100, 999))
-].reset_index(drop=True)
+]
 
 df_eval = df_eval[
     df_eval["tgt"].apply(lambda x: 10 <= abs(int(x)) <= 99)
     & df_eval["src"].apply(lambda x: check_numbers_in_range(x, 10, 99))
-].reset_index(drop=True)
+]
 
 
 """# Build Dictionary
