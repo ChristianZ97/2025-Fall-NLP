@@ -51,7 +51,7 @@ def set_seed(seed=42):
     print(f"\n\nUsing random seed {seed}")
 
 
-set_seed()
+set_seed(int(time.time()))
 
 data_path = "./data"
 

@@ -5,6 +5,7 @@ from gensim.models import Word2Vec
 from tqdm import tqdm
 import re
 
+
 def evaluate_model(model_path: str, questions_df: pd.DataFrame):
     """
     Evaluates a single Word2Vec model on the analogy task.
@@ -12,21 +13,23 @@ def evaluate_model(model_path: str, questions_df: pd.DataFrame):
     """
     print(f"\n--- Evaluating model: {os.path.basename(model_path)} ---")
     model = Word2Vec.load(model_path)
-    
+
     preds = []
     golds = []
 
     for analogy in tqdm(questions_df["Question"], desc="Processing analogies"):
         word_a, word_b, word_c, word_d = analogy.split()
         golds.append(word_d)
-        
+
         vocab = model.wv.key_to_index
         if not all(word in vocab for word in [word_a, word_b, word_c]):
             preds.append(None)
             continue
 
         try:
-            res_seq = model.wv.most_similar(positive=[word_b, word_c], negative=[word_a], topn=1)
+            res_seq = model.wv.most_similar(
+                positive=[word_b, word_c], negative=[word_a], topn=1
+            )
             pred = res_seq[0][0]
             preds.append(pred)
         except Exception:
@@ -53,7 +56,7 @@ def evaluate_model(model_path: str, questions_df: pd.DataFrame):
         golds_subcat, preds_subcat = golds_np[mask], preds_np[mask]
         acc_subcat = calculate_accuracy(golds_subcat, preds_subcat)
         accuracies[sub_category] = acc_subcat * 100
-        
+
     return accuracies
 
 
@@ -63,22 +66,22 @@ def main():
     """
     questions_file = "questions-words.csv"
     model_pattern = r"word2vec_(\d+\.?\d*)\.model"
-    
+
     model_paths = {}
-    all_files = sorted(os.listdir('.'))
+    all_files = sorted(os.listdir("."))
     for filename in all_files:
         if filename.endswith(".model"):
             match = re.match(model_pattern, filename)
             if match and os.path.isfile(filename):
                 ratio = float(match.group(1))
                 model_paths[ratio] = filename
-    
+
     if not model_paths:
         print("No models found matching the pattern 'word2vec_*.model'. Exiting.")
         return
-        
+
     print(f"Found {len(model_paths)} models to evaluate: {list(model_paths.values())}")
-    
+
     questions_df = pd.read_csv(questions_file)
     all_results = {}
     model_names = []
@@ -89,10 +92,12 @@ def main():
 
     # --- Print Fully Aligned Markdown Table ---
     print("\n\n--- Final Results Table ---")
-    
+
     # Dynamically get all categories to display
-    categories_to_show = list(questions_df["Category"].unique()) + list(questions_df["SubCategory"].unique())
-    
+    categories_to_show = list(questions_df["Category"].unique()) + list(
+        questions_df["SubCategory"].unique()
+    )
+
     # Calculate column widths for perfect alignment
     # First column width is the max length of category names
     first_col_width = max(len(cat) for cat in categories_to_show)
@@ -119,6 +124,7 @@ def main():
             acc_str = f"{accuracy:.2f}%"
             row += f" {acc_str.center(other_col_widths[i])} |"
         print(row)
+
 
 if __name__ == "__main__":
     main()
