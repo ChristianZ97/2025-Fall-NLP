@@ -7,6 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/1J4gJhh5NTFqvdcCNzHGepqqE9C_7qxj7
 """
 
+import wandb
 import numpy as np
 import pandas as pd
 import torch
