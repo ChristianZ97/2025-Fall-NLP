@@ -27,6 +27,7 @@ from copy import deepcopy
 import time
 import random
 
+
 def set_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
@@ -39,7 +40,7 @@ def set_seed(seed=42):
     print(f"\n\nUsing random seed {seed}")
 
 
-#set_seed(int(time.time()))
+# set_seed(int(time.time()))
 set_seed()
 
 # Data path configuration
@@ -136,6 +137,7 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
     df["label_id_list"] = label_id_list
 
     return df
+
 
 df_train = data_preprocess(df_train, char_to_id)
 
@@ -289,7 +291,7 @@ class CharRNN(torch.nn.Module):
 
 
 # Set random seed for reproducibility
-#torch.manual_seed(SEED)
+# torch.manual_seed(SEED)
 
 # Device configuration
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -299,17 +301,19 @@ model = CharRNN(vocab_size, embed_dim, hidden_dim)
 
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
-optimizer = torch.optim.AdamW(model.parameters(), lr=config.adamw_lr, weight_decay=config.weight_decay)
+optimizer = torch.optim.AdamW(
+    model.parameters(), lr=config.adamw_lr, weight_decay=config.weight_decay
+)
 
 # Training Loop
 print(f"\n\nUsing device: {device}")
 model = model.to(device)
+model.train()
 i = 0
 best_accuracy = 0.0
 global_samples = 0
 for epoch in range(1, epochs + 1):
     # Training phase
-    model.train()
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")
     for batch_x, batch_y, batch_x_lens, batch_y_lens in bar:
         # Clear gradients
@@ -354,7 +358,6 @@ for epoch in range(1, epochs + 1):
             )
 
     # Evaluation phase
-    model.eval()
     matched = 0
     total = 0
     examples = []  # Store prediction examples
@@ -363,6 +366,7 @@ for epoch in range(1, epochs + 1):
         desc=f"Validation epoch {epoch}",
     )
     print("\n")
+    model.eval()
     with torch.no_grad():
         for _, row in bar_eval:
             batch_x = row["src"]
