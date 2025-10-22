@@ -7,9 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/1J4gJhh5NTFqvdcCNzHGepqqE9C_7qxj7
 """
 
-import wandb
-import time
-import math
 import numpy as np
 import pandas as pd
 import torch
@@ -21,15 +18,24 @@ import seaborn as sns
 import opencc
 import os
 from sklearn.model_selection import train_test_split
-from tqdm import tqdm
-from copy import deepcopy
-from muon import (
-    SingleDeviceMuon,
-)  # pip install git+https://github.com/KellerJordan/Muon
-from lion_pytorch import Lion  # pip install lion-pytorch
 
-# SEED = int(time.time())
-SEED = 42
+import time
+import random
+
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    print(f"\n\nUsing random seed {seed}")
+
+
+#set_seed(int(time.time()))
+set_seed()
 
 # Data path configuration
 data_path = "./"
@@ -44,37 +50,6 @@ df_train["src"] = df_train["src"].add(df_train["tgt"])
 df_train["len"] = df_train["src"].apply(lambda x: len(x))
 
 df_eval["tgt"] = df_eval["tgt"].apply(lambda x: str(x))
-
-
-df_train_3digit = df_train[
-    df_train["tgt"].apply(lambda x: 100 <= abs(int(x)) <= 999)
-].copy()
-df_eval_2digit = df_eval[df_eval["tgt"].apply(lambda x: 10 <= abs(int(x)) <= 99)].copy()
-
-
-def modify_digit(original):
-    original = str(original)
-    if len(original) == 0:
-        return original
-
-    if original.startswith("-"):
-        if len(original) == 1:
-            return original
-        digit_pos = np.random.randint(1, len(original))
-    else:
-        digit_pos = np.random.randint(0, len(original))
-
-    new_digit = str(np.random.randint(0, 10))
-    modified = original[:digit_pos] + new_digit + original[digit_pos + 1 :]
-    return modified
-
-
-df_train_noise = df_train.copy()
-noise_indices = np.random.choice(
-    df_train_noise.index, size=int(len(df_train_noise) * 0.2), replace=False
-)
-modified_tgt = df_train_noise.loc[noise_indices, "tgt"].apply(modify_digit)
-df_train_noise.loc[noise_indices, "tgt"] = modified_tgt
 
 
 # Build Dictionary
@@ -116,10 +91,8 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
     df = df.copy()
     char_id_list = []
     label_id_list = []
-    src_len_list = []
 
     for sent in df["src"]:
-        sent_len = len(sent)
         sent = sent.split("=")
         sent_train = sent[0]
         sent_tgt = sent[1]
@@ -151,74 +124,30 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
         char_id.append(char_to_id["<eos>"])
         label_id.append(char_to_id["<pad>"])
 
-        src_len_list.append(sent_len)
         char_id_list.append(char_id)
         label_id_list.append(label_id)
 
-    df["len"] = src_len_list
     df["char_id_list"] = char_id_list
     df["label_id_list"] = label_id_list
 
     return df
 
-
 df_train = data_preprocess(df_train, char_to_id)
-# df_eval = data_preprocess(df_eval, char_to_id)
-# df_train_3digit = data_preprocess(df_train_3digit, char_to_id)
-# df_eval_2digit = data_preprocess(df_eval_2digit, char_to_id)
-# df_train_noise = data_preprocess(df_train_noise, char_to_id)
 
+df_train.head()
 
 # Hyperparameter configuration
-default_config = {"muon_lr": 0.001, "adamw_lr": 0.001}
+default_config = {"adamw_lr": 0.001, "weight_decay": 0.01}
 
-# lr = 0.0011554
-# weight_decay = 0.0057802
-# momentum = 0.98805
-epochs = 2
-grad_clip = 1
-embed_dim = 256
 batch_size = 64
+epochs = 6
+embed_dim = 256
 hidden_dim = 256
+grad_clip = 1
 
 # Initialize wandb
 wandb.init(project="nlp-hw2-arithmetic", config=default_config)
 config = wandb.config
-
-'''
-def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
-    """
-    - LSTM: 13h² + (4e + v + 17)h + (ve + v)
-    - GRU:  10h² + (3e + v + 13)h + (ve + v)
-    - RNN:   4h² + (e + v + 5)h + (ve + v)
-    """
-    h_base = 256
-    a_lstm = 13
-    b_lstm = 4 * embed_dim + vocab_size + 17
-    c_lstm_const = vocab_size * embed_dim + vocab_size
-    target_params = a_lstm * h_base**2 + b_lstm * h_base + c_lstm_const
-
-    if rnn_type == "LSTM":
-        return 256
-    elif rnn_type == "GRU":
-        a = 10
-        b = 3 * embed_dim + vocab_size + 13
-        c_const = vocab_size * embed_dim + vocab_size
-    elif rnn_type == "RNN":
-        a = 4
-        b = embed_dim + vocab_size + 5
-        c_const = vocab_size * embed_dim + vocab_size
-
-    c = c_const - target_params
-    discriminant = b**2 - 4 * a * c
-    h = (-b + math.sqrt(discriminant)) / (2 * a)
-    return int(round(h))
-
-
-hidden_dim = calculate_hidden_dim(
-    rnn_type=config.rnn_type, embed_dim=embed_dim, vocab_size=vocab_size
-)
-'''
 
 
 # Dataset class
@@ -355,7 +284,7 @@ class CharRNN(torch.nn.Module):
 
 
 # Set random seed for reproducibility
-torch.manual_seed(SEED)
+#torch.manual_seed(SEED)
 
 # Device configuration
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -363,47 +292,19 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Initialize model
 model = CharRNN(vocab_size, embed_dim, hidden_dim)
 
-# model.embedding -> embed
-# model.rnnlayer1, model.rnnlayer2 -> body
-# model.linear -> head
-
-muon_params = [
-    p
-    for layer in [model.rnn_layer1, model.rnn_layer2]
-    for p in layer.parameters()
-    if p.ndim >= 2
-]
-
-adamw_params = [
-    *model.embedding.parameters(),
-    *[
-        p
-        for layer in [model.rnn_layer1, model.rnn_layer2]
-        for p in layer.parameters()
-        if p.ndim < 2
-    ],
-    *model.linear.parameters(),
-]
-
-
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
-optimizers = [
-    SingleDeviceMuon(muon_params, lr=config.muon_lr),
-    torch.optim.AdamW(adamw_params, lr=config.adamw_lr),
-]
+optimizers = torch.optim.AdamW(model.parameters(), lr=config.adamw_lr, weight_decay=config.weight_decay)
 
 # Training Loop
 print(f"\n\nUsing device: {device}")
-# print(f"RNN Type: {config.rnn_type}, Hidden Dim: {hidden_dim}")
-print(f"Using random seed: {SEED}\n\n")
 model = model.to(device)
-model.train()
 i = 0
 best_accuracy = 0.0
 global_samples = 0
 for epoch in range(1, epochs + 1):
     # Training phase
+    model.train()
     bar = tqdm(dl_train, desc=f"Train epoch {epoch}")
     for batch_x, batch_y, batch_x_lens, batch_y_lens in bar:
         # Clear gradients
@@ -411,8 +312,7 @@ for epoch in range(1, epochs + 1):
         batch_x = batch_x.to(device, non_blocking=True)
         batch_y = batch_y.to(device, non_blocking=True)
 
-        for optimizer in optimizers:
-            optimizer.zero_grad()
+        optimizer.zero_grad()
 
         # Forward pass
         batch_pred_y = model(batch_x, batch_x_lens)
@@ -434,8 +334,7 @@ for epoch in range(1, epochs + 1):
         torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=grad_clip)
 
         # Update parameters
-        for optimizer in optimizers:
-            optimizer.step()
+        optimizer.step()
 
         i += 1
         if i % 50 == 0:

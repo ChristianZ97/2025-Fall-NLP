@@ -128,7 +128,6 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
     src_len_list = []
 
     for sent in df["src"]:
-        sent_len = len(sent)
         sent = sent.split("=")
         sent_train = sent[0]
         sent_tgt = sent[1]
@@ -160,7 +159,7 @@ def data_preprocess(df: pd.DataFrame, char_to_id: dict) -> pd.DataFrame:
         char_id.append(char_to_id["<eos>"])
         label_id.append(char_to_id["<pad>"])
 
-        src_len_list.append(sent_len)
+        src_len_list.append(len(char_id))
         char_id_list.append(char_id)
         label_id_list.append(label_id)
 
