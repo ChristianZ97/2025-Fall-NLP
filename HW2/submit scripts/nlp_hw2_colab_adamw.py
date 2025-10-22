@@ -393,8 +393,8 @@ for epoch in range(1, epochs + 1):
 
         batch_x = batch_x.to(device, non_blocking=True)
         batch_y = batch_y.to(device, non_blocking=True)
-        for optimizer in optimizers:
-            optimizer.zero_grad()
+
+        optimizer.zero_grad()
 
         batch_pred_y = model(batch_x.to(device), batch_x_lens)
 
@@ -412,8 +412,7 @@ for epoch in range(1, epochs + 1):
         # Write your code here
         # Optimize parameters in the model
 
-        for optimizer in optimizers:
-            optimizer.step()
+        optimizer.step()
 
         i += 1
         if i % 50 == 0:

@@ -196,6 +196,7 @@ adamw_lr = 0.00026231
 muon_lr = 0.0014902
 grad_clip = 1
 
+
 def calculate_hidden_dim(rnn_type, embed_dim, vocab_size):
     """
     - LSTM: 13h² + (4e + v + 17)h + (ve + v)
