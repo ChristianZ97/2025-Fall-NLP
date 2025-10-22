@@ -38,7 +38,7 @@ def set_seed(seed=42):
 set_seed()
 
 # Data path configuration
-data_path = "./"
+data_path = "./data"
 
 # Load datasets
 df_train = pd.read_csv(os.path.join(data_path, "arithmetic_train.csv"))
