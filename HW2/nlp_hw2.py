@@ -140,7 +140,7 @@ df_train.head()
 default_config = {"adamw_lr": 0.001, "weight_decay": 0.01}
 
 batch_size = 64
-epochs = 6
+epochs = 2
 embed_dim = 256
 hidden_dim = 256
 grad_clip = 1
