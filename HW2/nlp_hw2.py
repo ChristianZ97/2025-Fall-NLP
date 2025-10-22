@@ -359,7 +359,7 @@ for epoch in range(1, epochs + 1):
     total = 0
     examples = []  # Store prediction examples
     bar_eval = tqdm(
-        df_eval.sample(frac=0.1, random_state=SEED).iterrows(),
+        df_eval.sample(frac=0.05).iterrows(),
         desc=f"Validation epoch {epoch}",
     )
     print("\n")
