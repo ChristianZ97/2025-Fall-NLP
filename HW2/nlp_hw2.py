@@ -299,7 +299,7 @@ model = CharRNN(vocab_size, embed_dim, hidden_dim)
 
 # Loss function and optimizer
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
-optimizers = torch.optim.AdamW(model.parameters(), lr=config.adamw_lr, weight_decay=config.weight_decay)
+optimizer = torch.optim.AdamW(model.parameters(), lr=config.adamw_lr, weight_decay=config.weight_decay)
 
 # Training Loop
 print(f"\n\nUsing device: {device}")
