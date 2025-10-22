@@ -66,28 +66,8 @@ df_train["len"] = df_train["src"].apply(lambda x: len(x))
 
 df_eval["tgt"] = df_eval["tgt"].apply(lambda x: str(x))
 
-
-import re
-
-
-def check_numbers_in_range(src, min_val, max_val):
-    equation_part = src.split("=")[0]
-    numbers = re.findall(r"\d+", equation_part)
-    for num in numbers:
-        if not (min_val <= abs(int(num)) <= max_val):
-            return False
-    return True
-
-
-df_train = df_train[
-    df_train["tgt"].apply(lambda x: 100 <= abs(int(x)) <= 999)
-    & df_train["src"].apply(lambda x: check_numbers_in_range(x, 100, 999))
-]
-
-df_eval = df_eval[
-    df_eval["tgt"].apply(lambda x: 10 <= abs(int(x)) <= 99)
-    & df_eval["src"].apply(lambda x: check_numbers_in_range(x, 10, 99))
-]
+df_train = df_train[df_train["tgt"].apply(lambda x: 100 <= abs(int(x)) <= 999)]
+df_eval = df_eval[df_eval["tgt"].apply(lambda x: 10 <= abs(int(x)) <= 99)]
 
 
 """# Build Dictionary
