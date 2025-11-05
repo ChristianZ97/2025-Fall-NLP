@@ -117,7 +117,11 @@ epochs = 3
 train_batch_size = 128
 validation_batch_size = 128
 
-wandb.init(project="nlp-hw3-multi-output", config=default_config, mode="offline")
+wandb.init(
+    project="nlp-hw3-multi-output",
+    config=default_config,
+    settings=wandb.Settings(log_internal=True, flush_interval=30, start_method="fork"),
+)
 config = wandb.config
 save_dir = f"./saved_models/{wandb.run.id}"
 os.makedirs(save_dir, exist_ok=True)
