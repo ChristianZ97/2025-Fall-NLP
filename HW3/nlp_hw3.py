@@ -94,7 +94,13 @@ class SemevalDataset(Dataset):
 # print(f"Dataset example: \n{data_sample[0]} \n{data_sample[1]} \n{data_sample[2]}")
 
 # Hyperparameter configuration
-default_config = {"muon_lr": 3e-5, "adamw_lr": 3e-5, "alpha": 0.5, "weight_decay": 0.01, "dropout_rate": 0.1}
+default_config = {
+    "muon_lr": 3e-5,
+    "adamw_lr": 3e-5,
+    "alpha": 0.5,
+    "weight_decay": 0.01,
+    "dropout_rate": 0.1,
+}
 
 
 # Define the hyperparameters
@@ -106,6 +112,8 @@ validation_batch_size = 128
 
 wandb.init(project="nlp-hw3-multi-output", config=default_config)
 config = wandb.config
+save_dir = f"./saved_models/{wandb.run.id}"
+os.makedirs(save_dir, exist_ok=True)
 
 # TODO1: Create batched data for DataLoader
 # `collate_fn` is a function that defines how the data batch should be packed.
@@ -405,11 +413,11 @@ for ep in range(epochs):
 
         if combined_score > best_score:
             best_score = combined_score
-            torch.save(model.state_dict(), f"./saved_models/best_model.ckpt")
+            torch.save(model.state_dict(), f"{save_dir}/best_model.ckpt")
 
 # Load the model
 model = MultiLabelModel().to(device)
-model.load_state_dict(torch.load(f"./saved_models/best_model.ckpt", weights_only=True))
+model.load_state_dict(torch.load(f"{save_dir}/best_model.ckpt", weights_only=True))
 
 # Test Loop
 pbar = tqdm(dl_test, desc="Test")
