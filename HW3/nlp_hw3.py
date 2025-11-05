@@ -87,8 +87,8 @@ class SemevalDataset(Dataset):
         return len(self.data)
 
 
-data_sample = SemevalDataset(split="train").data[:3]
-print(f"Dataset example: \n{data_sample[0]} \n{data_sample[1]} \n{data_sample[2]}")
+# data_sample = SemevalDataset(split="train").data[:3]
+# print(f"Dataset example: \n{data_sample[0]} \n{data_sample[1]} \n{data_sample[2]}")
 
 # Hyperparameter configuration
 default_config = {"muon_lr": 3e-5, "adamw_lr": 3e-5, "alpha": 0.5}
@@ -289,7 +289,6 @@ psr = load("pearsonr")
 acc = load("accuracy")
 
 best_score = 0.0
-global_samples = 0
 i = 0
 for ep in range(epochs):
     pbar = tqdm(dl_train)
@@ -306,7 +305,6 @@ for ep in range(epochs):
 
     for batch in pbar:
 
-        global_samples += batch["input_ids"].shape[0]
         batch = {
             k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v
             for k, v in batch.items()
@@ -338,17 +336,17 @@ for ep in range(epochs):
         optimizer[0].step()
         optimizer[1].step()
 
+        pbar.set_postfix(loss=loss.item())
+        wandb.log(
+            {
+                "train_loss": loss.item(),
+                "raw_grad_norm": raw_grad_norm,
+                "batch_perplexity": torch.exp(loss).item(),
+            },
+            step=i,
+        )
+
         i += 1
-        if i % 50 == 0:
-            pbar.set_postfix(loss=loss.item())
-            wandb.log(
-                {
-                    "train_loss": loss.item(),
-                    "raw_grad_norm": raw_grad_norm,
-                    "batch_perplexity": torch.exp(loss).item(),
-                },
-                step=global_samples,
-            )
 
     pbar = tqdm(dl_validation)
     pbar.set_description(f"Validation epoch [{ep+1}/{epochs}]")
