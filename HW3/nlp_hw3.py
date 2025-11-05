@@ -232,7 +232,9 @@ class MultiLabelModel(torch.nn.Module):
         shared_features = self.dropout(
             self.activation(self.shared_dense(cls_representation))
         )
-        regression_output = self.regression_head(shared_features) * 5 # [0, 1] -> [0, 5]
+        regression_output = (
+            self.regression_head(shared_features) * 5
+        )  # [0, 1] -> [0, 5]
         classification_output = self.classification_head(shared_features)
 
         return {
@@ -455,5 +457,14 @@ with torch.no_grad():
 
     combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
     print(f"Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+
+
+wandb.log(
+    {
+        "test_pearson": pearson_corr,
+        "test_accuracy": accuracy,
+        "test_combined_score": combined_score,
+    }
+)
 
 wandb.finish()
