@@ -306,7 +306,7 @@ psr = load("pearsonr")
 acc = load("accuracy")
 
 best_score = 0.0
-i = 0
+sample_count = 0
 for ep in range(epochs):
     pbar = tqdm(dl_train)
     pbar.set_description(f"Training epoch [{ep+1}/{epochs}]")
@@ -353,14 +353,15 @@ for ep in range(epochs):
         optimizer[1].step()
 
         pbar.set_postfix(loss=loss.item())
-        i += 1
+        batch_size = batch["input_ids"].shape[0]
+        sample_count += batch_size
         wandb.log(
             {
                 "train_loss": loss.item(),
                 "raw_grad_norm": raw_grad_norm,
                 "batch_perplexity": torch.exp(loss).item(),
             },
-            step=i,
+            step=sample_count,
         )
 
     pbar = tqdm(dl_validation)
