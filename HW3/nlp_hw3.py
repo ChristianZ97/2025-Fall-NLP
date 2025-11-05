@@ -28,6 +28,7 @@ import time
 import numpy as np
 import random
 import os
+from torch.cuda.amp import autocast
 
 
 def set_seed(seed=42):
@@ -98,8 +99,8 @@ default_config = {"muon_lr": 3e-5, "adamw_lr": 3e-5, "alpha": 0.5}
 # You can modify these values if needed
 # lr = 3e-5
 epochs = 3
-train_batch_size = 256
-validation_batch_size = 256
+train_batch_size = 128
+validation_batch_size = 128
 
 wandb.init(project="nlp-hw3-multi-output", config=default_config)
 config = wandb.config
@@ -154,7 +155,7 @@ dl_train = DataLoader(
     batch_size=train_batch_size,
     shuffle=True,
     collate_fn=collate_fn,
-    num_workers=os.cpu_count(),
+    num_workers=min(8, os.cpu_count()),
     pin_memory=True,
     persistent_workers=True,
 )
@@ -163,7 +164,7 @@ dl_validation = DataLoader(
     batch_size=validation_batch_size,
     shuffle=False,
     collate_fn=collate_fn,
-    num_workers=os.cpu_count(),
+    num_workers=min(8, os.cpu_count()),
     persistent_workers=True,
 )
 dl_test = DataLoader(
@@ -171,7 +172,7 @@ dl_test = DataLoader(
     batch_size=validation_batch_size,
     shuffle=False,
     collate_fn=collate_fn,
-    num_workers=os.cpu_count(),
+    num_workers=min(8, os.cpu_count()),
     persistent_workers=True,
 )
 
@@ -306,7 +307,6 @@ for ep in range(epochs):
     # model optimization
 
     for batch in pbar:
-
         batch = {
             k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v
             for k, v in batch.items()
