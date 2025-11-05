@@ -94,7 +94,7 @@ class SemevalDataset(Dataset):
 # print(f"Dataset example: \n{data_sample[0]} \n{data_sample[1]} \n{data_sample[2]}")
 
 # Hyperparameter configuration
-default_config = {"muon_lr": 3e-5, "adamw_lr": 3e-5, "alpha": 0.5}
+default_config = {"muon_lr": 3e-5, "adamw_lr": 3e-5, "alpha": 0.5, "weight_decay": 0.01, "dropout_rate": 0.1}
 
 
 # Define the hyperparameters
@@ -157,7 +157,7 @@ dl_train = DataLoader(
     batch_size=train_batch_size,
     shuffle=True,
     collate_fn=collate_fn,
-    num_workers=min(8, os.cpu_count()),
+    num_workers=os.cpu_count(),
     pin_memory=True,
     persistent_workers=True,
 )
@@ -166,7 +166,7 @@ dl_validation = DataLoader(
     batch_size=validation_batch_size,
     shuffle=False,
     collate_fn=collate_fn,
-    num_workers=min(8, os.cpu_count()),
+    num_workers=os.cpu_count(),
     persistent_workers=True,
 )
 dl_test = DataLoader(
@@ -174,7 +174,7 @@ dl_test = DataLoader(
     batch_size=validation_batch_size,
     shuffle=False,
     collate_fn=collate_fn,
-    num_workers=min(8, os.cpu_count()),
+    num_workers=os.cpu_count(),
     persistent_workers=True,
 )
 
@@ -197,7 +197,7 @@ class MultiLabelModel(torch.nn.Module):
 
         self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
         self.activation = torch.nn.ReLU()
-        self.dropout = torch.nn.Dropout(0.1)
+        self.dropout = torch.nn.Dropout(config.dropout_rate)
 
         self.regression_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
