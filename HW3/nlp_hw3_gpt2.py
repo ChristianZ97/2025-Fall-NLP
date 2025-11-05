@@ -111,14 +111,6 @@ default_config = {
     "batch_size": 256,
 }
 
-
-# Define the hyperparameters
-# You can modify these values if needed
-# lr = 3e-5
-epochs = 3
-train_batch_size = config.batch_size
-validation_batch_size = 256
-
 wandb.init(
     project="nlp-hw3-multi-output",
     config=default_config,
@@ -126,6 +118,13 @@ wandb.init(
 config = wandb.config
 save_dir = f"./saved_models/{wandb.run.id}"
 os.makedirs(save_dir, exist_ok=True)
+
+# Define the hyperparameters
+# You can modify these values if needed
+# lr = 3e-5
+epochs = 3
+train_batch_size = config.batch_size
+validation_batch_size = 256
 
 # TODO1: Create batched data for DataLoader
 # `collate_fn` is a function that defines how the data batch should be packed.
