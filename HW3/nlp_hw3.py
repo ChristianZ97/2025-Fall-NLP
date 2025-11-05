@@ -30,6 +30,8 @@ import random
 import os
 from torch.cuda.amp import autocast
 
+os.makedirs("./saved_models", exist_ok=True)
+
 
 def set_seed(seed=42):
     random.seed(seed)
@@ -292,7 +294,6 @@ psr = load("pearsonr")
 acc = load("accuracy")
 
 best_score = 0.0
-i = 0
 for ep in range(epochs):
     pbar = tqdm(dl_train)
     pbar.set_description(f"Training epoch [{ep+1}/{epochs}]")
@@ -345,10 +346,7 @@ for ep in range(epochs):
                 "raw_grad_norm": raw_grad_norm,
                 "batch_perplexity": torch.exp(loss).item(),
             },
-            step=i,
         )
-
-        i += 1
 
     pbar = tqdm(dl_validation)
     pbar.set_description(f"Validation epoch [{ep+1}/{epochs}]")
@@ -403,7 +401,6 @@ for ep in range(epochs):
                 "val_accuracy": accuracy,
                 "val_combined_score": combined_score,
             },
-            step=ep + 1,
         )
 
         if combined_score > best_score:
