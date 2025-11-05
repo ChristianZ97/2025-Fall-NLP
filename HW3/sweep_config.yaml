@@ -1,0 +1,16 @@
+program: nlp_hw3.py
+method: bayes
+metric:
+  name: val_combined_score
+  goal: maximize
+parameters:
+  muon_lr:
+    distribution: log_uniform_values
+    min: 0.00015
+    max: 0.002
+  adamw_lr:
+    distribution: log_uniform_values
+    min: 0.00015
+    max: 0.002
+  alpha:
+    values: [0.5]

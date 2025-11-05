@@ -359,7 +359,9 @@ model = CharRNN(vocab_size, embed_dim, hidden_dim)
 # optimizer = # Write your code here. Use Adam or AdamW for Optimizer
 
 criterion = torch.nn.CrossEntropyLoss(ignore_index=char_to_id["<pad>"])
-optimizer = torch.optim.AdamW(model.parameters(), lr=adamw_lr, weight_decay=weight_decay)
+optimizer = torch.optim.AdamW(
+    model.parameters(), lr=adamw_lr, weight_decay=weight_decay
+)
 
 """# Training
 1. The outer `for` loop controls the `epoch`
@@ -390,7 +392,7 @@ for epoch in range(1, epochs + 1):
 
         batch_x = batch_x.to(device, non_blocking=True)
         batch_y = batch_y.to(device, non_blocking=True)
-        
+
         optimizer.zero_grad()
 
         batch_pred_y = model(batch_x.to(device), batch_x_lens)
