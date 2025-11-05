@@ -8,6 +8,7 @@ Original file is located at
 """
 
 #! pip install evaluate
+#! pip install datasets==2.21.0
 #! pip install git+https://github.com/KellerJordan/Muon
 
 # from google.colab import userdata
@@ -79,8 +80,10 @@ class SemevalDataset(Dataset):
         super().__init__()
         assert split in ["train", "validation", "test"]
         self.data = load_dataset(
-            # "sem_eval_2014_task_1", split=split, trust_remote_code=True, cache_dir="./cache/" # fxxk your dataset
-            "marcov/sem_eval_2014_task_1_promptsource",
+            "sem_eval_2014_task_1",
+            split=split,
+            trust_remote_code=True,
+            cache_dir="./cache/",
             split=split,
             cache_dir="./cache/",
         ).to_list()
