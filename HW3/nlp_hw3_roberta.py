@@ -61,10 +61,10 @@ token_replacement = [
     ["！", "!"],
 ]
 
-tokenizer = BertTokenizer.from_pretrained(
-    "google-bert/bert-base-uncased", cache_dir="./cache/"
+# tokenizer = BertTokenizer.from_pretrained("google-bert/bert-base-uncased", cache_dir="./cache/")
+tokenizer = RobertaTokenizer.from_pretrained(
+    "FacebookAI/roberta-base", cache_dir="./cache/"
 )
-# tokenizer = RobertaTokenizer.from_pretrained("FacebookAI/roberta-base", cache_dir="./cache/")
 
 
 class SemevalDataset(Dataset):
@@ -196,12 +196,12 @@ class MultiLabelModel(torch.nn.Module):
         # Please use "google-bert/bert-base-uncased" model (https://huggingface.co/google-bert/bert-base-uncased)
         # Besides the base model, you may design additional architectures by incorporating linear layers, activation functions, or other neural components.
         # Remark: The use of any additional pretrained language models is not permitted.
-        self.bert = BertModel.from_pretrained(
-            "google-bert/bert-base-uncased", cache_dir="./cache/"
+        # self.bert = BertModel.from_pretrained("google-bert/bert-base-uncased", cache_dir="./cache/")
+        self.roberta = RobertaModel.from_pretrained(
+            "FacebookAI/roberta-base", cache_dir="./cache/"
         )
-        # self.roberta = RobertaModel.from_pretrained("FacebookAI/roberta-base", cache_dir="./cache/")
-        hidden_size = self.bert.config.hidden_size
-        # hidden_size = self.roberta.config.hidden_size
+        # hidden_size = self.bert.config.hidden_size
+        hidden_size = self.roberta.config.hidden_size
 
         self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
         self.activation = torch.nn.ReLU()
@@ -230,15 +230,15 @@ class MultiLabelModel(torch.nn.Module):
         attention_mask = kwargs["attention_mask"]
         token_type_ids = kwargs["token_type_ids"]
 
-        bert_output = self.bert(
+        # bert_output = self.bert(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids,)
+        roberta_output = self.roberta(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
         )
-        # roberta_output = self.roberta(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
 
-        cls_representation = bert_output.last_hidden_state[:, 0, :]
-        # cls_representation = roberta_output.last_hidden_state[:, 0, :]
+        # cls_representation = bert_output.last_hidden_state[:, 0, :]
+        cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
         shared_features = self.dropout(
             self.activation(self.shared_dense(cls_representation))
@@ -263,8 +263,8 @@ model = MultiLabelModel().to(device)
 muon_params = [
     p
     for layer in [
-        model.bert,
-        # model.roberta,
+        # model.bert,
+        model.roberta,
         model.shared_dense,
         model.regression_head,
         model.classification_head,
@@ -276,8 +276,8 @@ muon_params = [
 adamw_params = [
     p
     for layer in [
-        model.bert,
-        # model.roberta,
+        # model.bert,
+        model.roberta,
         model.shared_dense,
         model.regression_head,
         model.classification_head,
