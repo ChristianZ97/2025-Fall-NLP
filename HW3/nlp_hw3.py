@@ -98,8 +98,8 @@ default_config = {"muon_lr": 3e-5, "adamw_lr": 3e-5, "alpha": 0.5}
 # You can modify these values if needed
 # lr = 3e-5
 epochs = 3
-train_batch_size = 512
-validation_batch_size = 512
+train_batch_size = 256
+validation_batch_size = 256
 
 wandb.init(project="nlp-hw3-multi-output", config=default_config)
 config = wandb.config
