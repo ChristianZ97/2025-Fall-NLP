@@ -101,15 +101,15 @@ default_config = {
     "alpha": 0.5,
     "weight_decay": 0.01,
     "dropout_rate": 0.1,
+    "batch_size": 256,
 }
-
 
 # Define the hyperparameters
 # You can modify these values if needed
 # lr = 3e-5
 epochs = 3
-train_batch_size = 512
-validation_batch_size = 512
+train_batch_size = config.batch_size
+validation_batch_size = 256
 
 wandb.init(
     project="nlp-hw3-multi-output",

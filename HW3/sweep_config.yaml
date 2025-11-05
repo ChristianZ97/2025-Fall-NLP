@@ -20,3 +20,5 @@ parameters:
     values: [0.5]
   dropout_rate:
     values: [0.05, 0.1, 0.15, 0.2]
+  batch_size:
+    values: [64, 128, 256, 512]
