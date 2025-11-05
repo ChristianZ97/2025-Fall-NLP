@@ -77,8 +77,6 @@ class SemevalDataset(Dataset):
             split=split,
             trust_remote_code=True,
             cache_dir="./cache/",
-            split=split,
-            cache_dir="./cache/",
         ).to_list()
 
     def __getitem__(self, index):
