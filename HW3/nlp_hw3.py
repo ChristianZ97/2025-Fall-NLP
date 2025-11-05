@@ -10,7 +10,7 @@ Original file is located at
 #! pip install evaluate
 #! pip install git+https://github.com/KellerJordan/Muon
 
-from google.colab import userdata
+# from google.colab import userdata
 from transformers import BertTokenizer, BertModel, RobertaTokenizer, RobertaModel
 from datasets import load_dataset
 from evaluate import load
@@ -44,9 +44,8 @@ def set_seed(seed=42):
 
 set_seed()
 
-from huggingface_hub import login
-
-login(token=userdata.get("HF_TOKEN"))
+# from huggingface_hub import login
+# login(token=userdata.get("HF_TOKEN"))
 
 # Some Chinese punctuations will be tokenized as [UNK], so we replace them with English ones
 token_replacement = [
