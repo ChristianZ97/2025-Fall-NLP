@@ -108,6 +108,7 @@ default_config = {
     "alpha": 0.5,
     "weight_decay": 0.01,
     "dropout_rate": 0.1,
+    "head_dropout_rate": 0.1,
 }
 
 
@@ -115,8 +116,8 @@ default_config = {
 # You can modify these values if needed
 # lr = 3e-5
 epochs = 3
-train_batch_size = 128
-validation_batch_size = 128
+train_batch_size = 512
+validation_batch_size = 512
 
 wandb.init(
     project="nlp-hw3-multi-output",
@@ -223,7 +224,7 @@ class MultiLabelModel(torch.nn.Module):
         self.regression_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
             torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
+            torch.nn.Dropout(config.head_dropout_rate),
             torch.nn.Linear(256, 1),  # [0, 5]
             torch.nn.Sigmoid(),
         )
@@ -231,7 +232,7 @@ class MultiLabelModel(torch.nn.Module):
         self.classification_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
             torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
+            torch.nn.Dropout(config.head_dropout_rate),
             torch.nn.Linear(256, 3),  # 0, 1, 2
         )
 
