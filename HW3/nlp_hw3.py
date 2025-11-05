@@ -417,6 +417,7 @@ for ep in range(epochs):
                 "val_accuracy": accuracy,
                 "val_combined_score": combined_score,
             },
+            step=sample_count,
         )
 
         if combined_score > best_score:
