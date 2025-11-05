@@ -157,6 +157,7 @@ dl_train = DataLoader(
     collate_fn=collate_fn,
     num_workers=os.cpu_count(),
     pin_memory=True,
+    persistent_workers=True,
 )
 dl_validation = DataLoader(
     SemevalDataset(split="validation"),
@@ -164,6 +165,7 @@ dl_validation = DataLoader(
     shuffle=False,
     collate_fn=collate_fn,
     num_workers=os.cpu_count(),
+    persistent_workers=True,
 )
 dl_test = DataLoader(
     SemevalDataset(split="test"),
@@ -171,6 +173,7 @@ dl_test = DataLoader(
     shuffle=False,
     collate_fn=collate_fn,
     num_workers=os.cpu_count(),
+    persistent_workers=True,
 )
 
 
@@ -454,3 +457,5 @@ with torch.no_grad():
 
     combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
     print(f"Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+
+wandb.finish()
