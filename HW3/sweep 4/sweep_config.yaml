@@ -1,0 +1,22 @@
+program: nlp_hw3.py
+method: bayes
+metric:
+  name: test_combined_score
+  goal: maximize
+parameters:
+  adamw_lr:
+    distribution: log_uniform_values
+    min: 0.0001539392078690776
+    max: 0.000285887100328287
+  muon_lr:
+    distribution: log_uniform_values
+    min: 0.00038632617798059867
+    max: 0.000717462901963969
+  weight_decay:
+    distribution: log_uniform_values
+    min: 7.253966056747822e-05
+    max: 0.00029015864226991287
+  dropout_rate:
+    values:
+    - 0.05
+    - 0.15

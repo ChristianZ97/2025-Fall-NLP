@@ -32,7 +32,6 @@ import os
 
 # from torch.cuda.amp import autocast
 import torch.nn.functional as F
-from transformers import get_cosine_schedule_with_warmup
 
 os.makedirs("./saved_models", exist_ok=True)
 
@@ -105,7 +104,6 @@ default_config = {
     "weight_decay": 0.000023208,
     "dropout_rate": 0.05,
     "batch_size": 32,
-    "warmup_ratio": 0.1,
 }
 
 wandb.init(
@@ -304,21 +302,6 @@ optimizer = [
     torch.optim.AdamW(adamw_params, lr=config.adamw_lr),
 ]
 
-num_training_steps = epochs * len(dl_train)
-num_warmup_steps = int(num_training_steps * config.warmup_ratio)
-
-scheduler_muon = get_cosine_schedule_with_warmup(
-    optimizer[0],
-    num_warmup_steps=num_warmup_steps,
-    num_training_steps=num_training_steps,
-)
-
-scheduler_adamw = get_cosine_schedule_with_warmup(
-    optimizer[1],
-    num_warmup_steps=num_warmup_steps,
-    num_training_steps=num_training_steps,
-)
-
 # TODO3-2: Define your loss functions (you should have two)
 # Write your code here
 
@@ -375,9 +358,6 @@ for ep in range(epochs):
 
         optimizer[0].step()
         optimizer[1].step()
-
-        scheduler_muon.step()
-        scheduler_adamw.step()
 
         pbar.set_postfix(loss=loss.item())
         batch_size = batch["input_ids"].shape[0]
