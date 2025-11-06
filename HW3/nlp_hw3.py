@@ -274,7 +274,7 @@ muon_params = [
     for layer in [
         model.bert,
         # model.roberta,
-        model.shared_dense,
+        model.linear,
         model.regression_head,
         model.classification_head,
     ]
@@ -287,7 +287,7 @@ adamw_params = [
     for layer in [
         model.bert,
         # model.roberta,
-        model.shared_dense,
+        model.linear,
         model.regression_head,
         model.classification_head,
     ]
