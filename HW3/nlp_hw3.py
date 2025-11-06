@@ -29,7 +29,9 @@ import time
 import numpy as np
 import random
 import os
-from torch.cuda.amp import autocast
+
+# from torch.cuda.amp import autocast
+import torch.nn.functional as F
 
 os.makedirs("./saved_models", exist_ok=True)
 

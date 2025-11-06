@@ -3,9 +3,6 @@ method: bayes
 metric:
   name: test_combined_score
   goal: maximize
-early_terminate:
-  type: hyperband
-  min_iter: 3
 parameters:
   adamw_lr:
     distribution: log_uniform_values
@@ -23,5 +20,3 @@ parameters:
     values:
     - 0.05
     - 0.15
-  batch_size:
-    value: 32
