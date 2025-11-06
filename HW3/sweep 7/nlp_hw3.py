@@ -211,27 +211,27 @@ class MultiLabelModel(torch.nn.Module):
         hidden_size = self.bert.config.hidden_size
         # hidden_size = self.roberta.config.hidden_size
 
-        self.shared_dense = torch.nn.Linear(hidden_size, hidden_size * 2)
+        self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
         # self.activation = torch.nn.ReLU()
         self.activation = torch.nn.GELU()
         # self.linear = torch.nn.Linear(hidden_size, hidden_size * 2, bias=False)
         self.dropout = torch.nn.Dropout(config.dropout_rate)
 
         self.regression_head = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size * 2, 512),
+            torch.nn.Linear(hidden_size, 256),
             # torch.nn.ReLU(),
             torch.nn.GELU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(512, 1),  # [0, 5]
+            torch.nn.Linear(256, 1),  # [0, 5]
             torch.nn.Sigmoid(),
         )
 
         self.classification_head = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size * 2, 512),
+            torch.nn.Linear(hidden_size, 256),
             # torch.nn.ReLU(),
             torch.nn.GELU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(512, 3),  # 0, 1, 2
+            torch.nn.Linear(256, 3),  # 0, 1, 2
         )
 
     def forward(self, **kwargs):
