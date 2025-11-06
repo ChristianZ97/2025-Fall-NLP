@@ -99,10 +99,10 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "muon_lr": 0.000577839942653345,
-    "adamw_lr": 0.000144535611723143,
+    "muon_lr": 0.00057784,
+    "adamw_lr": 0.00014454,
     "alpha": 0.5,
-    "weight_decay": 0.0000232078200592346,
+    "weight_decay": 0.000023208,
     "dropout_rate": 0.05,
     "batch_size": 32,
     "warmup_ratio": 0.1,
@@ -211,9 +211,10 @@ class MultiLabelModel(torch.nn.Module):
         hidden_size = self.bert.config.hidden_size
         # hidden_size = self.roberta.config.hidden_size
 
-        self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
-        self.activation = torch.nn.ReLU()
-        # self.linear = torch.nn.Linear(hidden_size, hidden_size * 2, bias=False)
+        # self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
+        # self.activation = torch.nn.ReLU()
+        self.linear = torch.nn.Linear(hidden_size, hidden_size * 2, bias=False)
+
         self.dropout = torch.nn.Dropout(config.dropout_rate)
 
         self.regression_head = torch.nn.Sequential(
@@ -249,13 +250,11 @@ class MultiLabelModel(torch.nn.Module):
         cls_representation = bert_output.last_hidden_state[:, 0, :]
         # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
-        shared_features = self.dropout(
-            self.activation(self.shared_dense(cls_representation))
-        )
+        # shared_features = self.dropout(self.activation(self.shared_dense(cls_representation)))
         # Implement SwiGLU
-        # gated_features, gate = self.linear(cls_representation).chunk(2, dim=-1)
-        # shared_features = F.silu(gate) * gated_features
-        # shared_features = self.dropout(shared_features)
+        gated_features, gate = self.linear(cls_representation).chunk(2, dim=-1)
+        shared_features = F.silu(gate) * gated_features
+        shared_features = self.dropout(shared_features)
 
         regression_output = (
             self.regression_head(shared_features) * 5
@@ -279,8 +278,7 @@ muon_params = [
     for layer in [
         model.bert,
         # model.roberta,
-        # model.linear,
-        model.shared_dense,
+        model.linear,
         model.regression_head,
         model.classification_head,
     ]
@@ -293,8 +291,7 @@ adamw_params = [
     for layer in [
         model.bert,
         # model.roberta,
-        # model.linear,
-        model.shared_dense,
+        model.linear,
         model.regression_head,
         model.classification_head,
     ]

@@ -3,23 +3,26 @@ method: bayes
 metric:
   name: test_combined_score
   goal: maximize
+early_terminate:
+  type: hyperband
+  min_iter: 3
 parameters:
   adamw_lr:
     distribution: log_uniform_values
-    min: 0.0001
-    max: 0.0002
+    min: 0.00016394063623258997
+    max: 0.00030446118157481
   muon_lr:
     distribution: log_uniform_values
-    min: 0.0004
-    max: 0.0008
+    min: 0.00039028209168429827
+    max: 0.0007248095988422683
   weight_decay:
     distribution: log_uniform_values
-    min: 1.0e-5
-    max: 1.0e-4
+    min: 6.356516741334166e-05
+    max: 0.00025426066965336663
   dropout_rate:
-    distribution: uniform
-    min: 0.0
-    max: 0.2
+    values:
+    - 0.05
+    - 0.15
   warmup_ratio:
     distribution: uniform
     min: 0.0
