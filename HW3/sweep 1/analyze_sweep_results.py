@@ -17,50 +17,65 @@ def analyze_sweep_results(csv_file):
     print("Available columns:", df.columns.tolist())
 
     # Determine which columns to use based on what's available
-    required_cols = ["best_val_accuracy"]
+    required_cols = ["test_combined_score"]
     optional_cols = [
-        "lr_adamw",
-        "lr_muon",
+        "adamw_lr",
+        "muon_lr",
         "weight_decay",
-        "momentum",
-        "rnn_type",
+        "dropout_rate",
         "batch_size",
+    ]
+
+    # Metric columns for display
+    metric_cols = [
+        "batch_perplexity",
+        "raw_grad_norm",
+        "test_accuracy",
+        "test_combined_score",
+        "test_pearson",
+        "train_loss",
+        "val_accuracy",
+        "val_combined_score",
+        "val_pearson",
     ]
 
     # Filter to columns that exist
     available_optional = [col for col in optional_cols if col in df.columns]
+    available_metrics = [col for col in metric_cols if col in df.columns]
     dropna_cols = required_cols + available_optional
+
+    # Use test_combined_score as primary metric for sorting
+    primary_metric = "test_combined_score"
 
     # Remove rows with missing values in key columns
     df = df.dropna(subset=dropna_cols)
 
-    # Sort by best validation accuracy
-    df = df.sort_values("best_val_accuracy", ascending=False)
+    # Sort by primary metric
+    df = df.sort_values(primary_metric, ascending=False)
 
     print("=" * 60)
     print("SWEEP RESULTS ANALYSIS")
     print("=" * 60)
     print(f"\nTotal runs: {len(df)}")
-    print(f"Best accuracy: {df['best_val_accuracy'].max():.4f}")
-    print(f"Mean accuracy: {df['best_val_accuracy'].mean():.4f}")
-    print(f"Median accuracy: {df['best_val_accuracy'].median():.4f}")
+    print(f"Best {primary_metric}: {df[primary_metric].max():.4f}")
+    print(f"Mean {primary_metric}: {df[primary_metric].mean():.4f}")
+    print(f"Median {primary_metric}: {df[primary_metric].median():.4f}")
 
     # Get top performers (top 20%)
     top_n = max(5, int(len(df) * 0.2))
     top_df = df.head(top_n)
 
     print(f"\n--- Top {top_n} Configurations ---")
-    display_cols = [
-        col for col in available_optional + ["best_val_accuracy"] if col in df.columns
-    ]
+    display_cols = available_optional + available_metrics
+    display_cols = [col for col in display_cols if col in df.columns]
     print(top_df[display_cols].to_string(index=False))
 
     # Analyze learning rate (AdamW)
-    if "lr_adamw" in df.columns:
+    if "adamw_lr" in df.columns:
         print("\n" + "=" * 60)
         print("LEARNING RATE (AdamW) ANALYSIS")
         print("=" * 60)
-        lr_top = top_df["lr_adamw"]
+        lr_top = top_df["adamw_lr"]
         lr_min = lr_top.min()
         lr_max = lr_top.max()
         lr_mean = lr_top.mean()
@@ -78,11 +93,11 @@ def analyze_sweep_results(csv_file):
         lr_refined_max = 0.002
 
     # Analyze learning rate (Muon)
-    if "lr_muon" in df.columns:
+    if "muon_lr" in df.columns:
         print("\n" + "=" * 60)
         print("LEARNING RATE (Muon) ANALYSIS")
         print("=" * 60)
-        lr_muon_top = top_df["lr_muon"]
+        lr_muon_top = top_df["muon_lr"]
         lr_muon_min = lr_muon_top.min()
         lr_muon_max = lr_muon_top.max()
         lr_muon_mean = lr_muon_top.mean()
@@ -121,65 +136,42 @@ def analyze_sweep_results(csv_file):
         wd_refined_min = 0.001
         wd_refined_max = 0.01
 
-    # Analyze momentum
-    if "momentum" in df.columns:
+    # Analyze dropout rate
+    if "dropout_rate" in df.columns:
         print("\n" + "=" * 60)
-        print("MOMENTUM ANALYSIS")
+        print("DROPOUT RATE ANALYSIS")
         print("=" * 60)
-        mom_top = top_df["momentum"]
-        mom_min = mom_top.min()
-        mom_max = mom_top.max()
-        mom_mean = mom_top.mean()
-        mom_median = mom_top.median()
-
-        print(f"Top configs Momentum range: [{mom_min:.6f}, {mom_max:.6f}]")
-        print(f"Mean Momentum: {mom_mean:.6f}")
-        print(f"Median Momentum: {mom_median:.6f}")
-
-        # Suggest refined momentum range
-        mom_refined_min = max(0.5, mom_mean * 0.95)
-        mom_refined_max = min(0.999, mom_mean * 1.05)
-    else:
-        mom_refined_min = 0.85
-        mom_refined_max = 0.999
-
-    # Analyze RNN type
-    print("\n" + "=" * 60)
-    print("RNN TYPE ANALYSIS")
-    print("=" * 60)
-    if "rnn_type" in df.columns:
-        rnn_stats = df.groupby("rnn_type")["best_val_accuracy"].agg(
+        dr_stats = df.groupby("dropout_rate")[primary_metric].agg(
             ["mean", "max", "count"]
         )
-        print(rnn_stats)
+        print(dr_stats)
 
-        # Get best RNN type
-        best_rnn = rnn_stats["mean"].idxmax()
-        rnn_counter = Counter(top_df["rnn_type"])
-        most_common_rnn = rnn_counter.most_common(1)[0][0]
+        best_dr = dr_stats["mean"].idxmax()
+        dr_counter = Counter(top_df["dropout_rate"])
+        most_common_dr = dr_counter.most_common(1)[0][0]
 
-        print(f"\nBest average performance: {best_rnn}")
-        print(f"Most common in top {top_n}: {most_common_rnn}")
+        print(f"\nBest average performance: {best_dr}")
+        print(f"Most common in top {top_n}: {most_common_dr}")
 
-        # Decide if we should fix RNN type or keep searching
-        if rnn_stats.loc[best_rnn, "mean"] > rnn_stats["mean"].mean() + 0.01:
-            use_fixed_rnn = True
-            fixed_rnn_type = best_rnn
-            print(f"\nRecommendation: Fix RNN type to {best_rnn} (clear winner)")
+        # Decide if we should fix dropout rate
+        if dr_stats.loc[best_dr, "mean"] > dr_stats["mean"].mean() + 0.01:
+            use_fixed_dr = True
+            fixed_dropout_rate = best_dr
+            print(f"\nRecommendation: Fix dropout rate to {best_dr} (clear winner)")
         else:
-            use_fixed_rnn = False
-            fixed_rnn_type = None
-            print(f"\nRecommendation: Continue exploring RNN types")
+            use_fixed_dr = False
+            fixed_dropout_rate = None
+            print(f"\nRecommendation: Continue exploring dropout rates")
     else:
-        use_fixed_rnn = False
-        fixed_rnn_type = None
+        use_fixed_dr = False
+        fixed_dropout_rate = None
 
     # Analyze batch size
     if "batch_size" in df.columns:
         print("\n" + "=" * 60)
         print("BATCH SIZE ANALYSIS")
         print("=" * 60)
-        bs_stats = df.groupby("batch_size")["best_val_accuracy"].agg(
+        bs_stats = df.groupby("batch_size")[primary_metric].agg(
             ["mean", "max", "count"]
         )
         print(bs_stats)
@@ -210,24 +202,24 @@ def analyze_sweep_results(csv_file):
     print("=" * 60)
 
     config = {
-        "program": "nlp_hw2.py",
+        "program": "nlp_hw3.py",
         "method": "bayes",
-        "metric": {"name": "val_accuracy", "goal": "maximize"},
+        "metric": {"name": "test_combined_score", "goal": "maximize"},
         "early_terminate": {"type": "hyperband", "min_iter": 3},
         "parameters": {},
     }
 
-    # Add lr_adamw parameter
-    if "lr_adamw" in df.columns:
-        config["parameters"]["lr_adamw"] = {
+    # Add adamw_lr parameter
+    if "adamw_lr" in df.columns:
+        config["parameters"]["adamw_lr"] = {
             "distribution": "log_uniform_values",
             "min": float(lr_refined_min),
             "max": float(lr_refined_max),
         }
 
-    # Add lr_muon parameter
-    if "lr_muon" in df.columns:
-        config["parameters"]["lr_muon"] = {
+    # Add muon_lr parameter
+    if "muon_lr" in df.columns:
+        config["parameters"]["muon_lr"] = {
             "distribution": "log_uniform_values",
             "min": float(lr_muon_refined_min),
             "max": float(lr_muon_refined_max),
@@ -241,25 +233,16 @@ def analyze_sweep_results(csv_file):
             "max": float(wd_refined_max),
         }
 
-    # Add momentum parameter
-    if "momentum" in df.columns:
-        config["parameters"]["momentum"] = {
-            "distribution": "log_uniform_values",
-            "min": float(mom_refined_min),
-            "max": float(mom_refined_max),
-        }
-
-    # Add RNN type parameter
-    if use_fixed_rnn:
-        config["parameters"]["rnn_type"] = {"value": fixed_rnn_type}
+    # Add dropout rate parameter
+    if use_fixed_dr:
+        config["parameters"]["dropout_rate"] = {"value": fixed_dropout_rate}
     else:
-        # Keep top 2 RNN types
-        if "rnn_type" in df.columns:
-            rnn_by_perf = rnn_stats.sort_values("mean", ascending=False)
-            top_rnn_types = list(rnn_by_perf.head(2).index)
-            config["parameters"]["rnn_type"] = {"values": top_rnn_types}
+        if "dropout_rate" in df.columns:
+            dr_by_perf = dr_stats.sort_values("mean", ascending=False)
+            top_dropout_rates = list(dr_by_perf.head(2).index)
+            config["parameters"]["dropout_rate"] = {"values": top_dropout_rates}
         else:
-            config["parameters"]["rnn_type"] = {"values": ["LSTM", "GRU"]}
+            config["parameters"]["dropout_rate"] = {"values": [0.1, 0.15]}
 
     # Add batch size parameter
     if use_fixed_bs:
@@ -279,21 +262,19 @@ def analyze_sweep_results(csv_file):
 
     print(f"\n✅ Refined sweep config saved to: {output_file}")
     print("\nNew configuration:")
-    if "lr_adamw" in df.columns:
-        print(f"  LR (AdamW) range: [{lr_refined_min:.6f}, {lr_refined_max:.6f}]")
-    if "lr_muon" in df.columns:
+    if "adamw_lr" in df.columns:
+        print(f"  AdamW LR range: [{lr_refined_min:.6f}, {lr_refined_max:.6f}]")
+    if "muon_lr" in df.columns:
         print(
-            f"  LR (Muon) range: [{lr_muon_refined_min:.6f}, {lr_muon_refined_max:.6f}]"
+            f"  Muon LR range: [{lr_muon_refined_min:.6f}, {lr_muon_refined_max:.6f}]"
         )
     if "weight_decay" in df.columns:
-        print(f"  WD range: [{wd_refined_min:.6f}, {wd_refined_max:.6f}]")
-    if "momentum" in df.columns:
-        print(f"  Momentum range: [{mom_refined_min:.6f}, {mom_refined_max:.6f}]")
+        print(f"  Weight decay range: [{wd_refined_min:.6f}, {wd_refined_max:.6f}]")
 
-    if use_fixed_rnn:
-        print(f"  RNN type: {fixed_rnn_type} (fixed)")
+    if use_fixed_dr:
+        print(f"  Dropout rate: {fixed_dropout_rate} (fixed)")
     else:
-        print(f"  RNN types: {config['parameters']['rnn_type']['values']}")
+        print(f"  Dropout rates: {config['parameters']['dropout_rate']['values']}")
 
     if use_fixed_bs:
         print(f"  Batch size: {fixed_batch_size} (fixed)")
@@ -311,11 +292,11 @@ def analyze_sweep_results(csv_file):
         for col in available_optional
         if col in df.columns and df[col].dtype in ["float64", "int64"]
     ]
-    numeric_cols.append("best_val_accuracy")
+    numeric_cols.extend(available_metrics)
 
     if len(numeric_cols) > 1:
-        corr = df[numeric_cols].corr()["best_val_accuracy"].sort_values(ascending=False)
-        print("\nCorrelation with val_accuracy:")
+        corr = df[numeric_cols].corr()[primary_metric].sort_values(ascending=False)
+        print(f"\nCorrelation with {primary_metric}:")
         print(corr.to_string())
 
     # Suggested next steps
