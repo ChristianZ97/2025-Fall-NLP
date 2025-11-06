@@ -6,17 +6,13 @@ metric:
 parameters:
   adamw_lr:
     distribution: log_uniform_values
-    min: 0.000125
-    max: 0.000215
+    min: 0.00014
+    max: 0.00015
   muon_lr:
     distribution: log_uniform_values
-    min: 0.00075
-    max: 0.00085
+    min: 0.000565
+    max: 0.000575
   weight_decay:
     distribution: log_uniform_values
-    min: 2.0e-5
-    max: 6.0e-5
-  warmup_ratio:
-    distribution: uniform
-    min: 0.0
-    max: 0.2
+    min: 0.00002
+    max: 0.00003
