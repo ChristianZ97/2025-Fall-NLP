@@ -103,7 +103,7 @@ default_config = {
     "adamw_lr": 0.000144535611723143,
     "alpha": 0.5,
     "weight_decay": 0.0000232078200592346,
-    "dropout_rate": 0.01,
+    "dropout_rate": 0.05,
     "batch_size": 32,
     "warmup_ratio": 0.1,
 }
@@ -212,15 +212,13 @@ class MultiLabelModel(torch.nn.Module):
         # hidden_size = self.roberta.config.hidden_size
 
         self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
-        # self.activation = torch.nn.ReLU()
-        self.activation = torch.nn.GELU()
+        self.activation = torch.nn.ReLU()
         # self.linear = torch.nn.Linear(hidden_size, hidden_size * 2, bias=False)
         self.dropout = torch.nn.Dropout(config.dropout_rate)
 
         self.regression_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
-            # torch.nn.ReLU(),
-            torch.nn.GELU(),
+            torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
             torch.nn.Linear(256, 1),  # [0, 5]
             torch.nn.Sigmoid(),
@@ -228,8 +226,7 @@ class MultiLabelModel(torch.nn.Module):
 
         self.classification_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
-            # torch.nn.ReLU(),
-            torch.nn.GELU(),
+            torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
             torch.nn.Linear(256, 3),  # 0, 1, 2
         )

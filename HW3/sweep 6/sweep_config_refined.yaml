@@ -1,0 +1,29 @@
+program: nlp_hw3.py
+method: bayes
+metric:
+  name: test_combined_score
+  goal: maximize
+early_terminate:
+  type: hyperband
+  min_iter: 3
+parameters:
+  adamw_lr:
+    distribution: log_uniform_values
+    min: 0.00011908120546047335
+    max: 0.0002211508101408791
+  muon_lr:
+    distribution: log_uniform_values
+    min: 0.0005403248306800999
+    max: 0.0010034603998344714
+  weight_decay:
+    distribution: log_uniform_values
+    min: 2.9925993408585717e-05
+    max: 0.00011970397363434287
+  dropout_rate:
+    values:
+    - 0.0001841046215839
+    - 0.0060600782141362
+  batch_size:
+    values:
+    - 128
+    - 256

@@ -4,20 +4,22 @@ metric:
   name: test_combined_score
   goal: maximize
 parameters:
-  dropout_rate:
-    value: 0.01
   adamw_lr:
     distribution: log_uniform_values
-    min: 0.00012
-    max: 0.00022
+    min: 0.0001
+    max: 0.0002
   muon_lr:
     distribution: log_uniform_values
-    min: 0.0007
-    max: 0.0009
+    min: 0.0004
+    max: 0.0008
   weight_decay:
     distribution: log_uniform_values
     min: 1.0e-5
     max: 1.0e-4
+  dropout_rate:
+    distribution: uniform
+    min: 0.0
+    max: 0.2
   warmup_ratio:
     distribution: uniform
     min: 0.0
