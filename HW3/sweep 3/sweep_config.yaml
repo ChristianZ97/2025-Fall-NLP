@@ -9,19 +9,21 @@ early_terminate:
 parameters:
   adamw_lr:
     distribution: log_uniform_values
-    min: 0.0001539392078690776
-    max: 0.000285887100328287
+    min: 0.00016891001401084997
+    max: 0.00031369002602015
   muon_lr:
     distribution: log_uniform_values
-    min: 0.00038632617798059867
-    max: 0.000717462901963969
+    min: 0.00032992359610126
+    max: 0.00061271524990234
   weight_decay:
     distribution: log_uniform_values
-    min: 7.253966056747822e-05
-    max: 0.00029015864226991287
+    min: 9.239984817815e-05
+    max: 0.0003695993927126
   dropout_rate:
     values:
-    - 0.05
     - 0.15
+    - 0.05
   batch_size:
-    value: 32
+    values:
+    - 128
+    - 256

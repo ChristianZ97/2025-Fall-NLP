@@ -207,10 +207,8 @@ class MultiLabelModel(torch.nn.Module):
         hidden_size = self.bert.config.hidden_size
         # hidden_size = self.roberta.config.hidden_size
 
-        # self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
-        # self.activation = torch.nn.ReLU()
-        self.linear = torch.nn.Linear(hidden_size, hidden_size * 2, bias=False)
-
+        self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
+        self.activation = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(config.dropout_rate)
 
         self.regression_head = torch.nn.Sequential(
@@ -246,12 +244,9 @@ class MultiLabelModel(torch.nn.Module):
         cls_representation = bert_output.last_hidden_state[:, 0, :]
         # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
-        # shared_features = self.dropout(self.activation(self.shared_dense(cls_representation)))
-        # Implement SwiGLU
-        gated_features, gate = self.linear(cls_representation).chunk(2, dim=-1)
-        shared_features = F.silu(gate) * gated_features
-        shared_features = self.dropout(shared_features)
-
+        shared_features = self.dropout(
+            self.activation(self.shared_dense(cls_representation))
+        )
         regression_output = (
             self.regression_head(shared_features) * 5
         )  # [0, 1] -> [0, 5]
