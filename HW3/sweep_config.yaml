@@ -4,8 +4,6 @@ metric:
   name: test_combined_score
   goal: maximize
 parameters:
-  dropout_rate:
-    value: 0.01
   adamw_lr:
     distribution: log_uniform_values
     min: 0.00012
