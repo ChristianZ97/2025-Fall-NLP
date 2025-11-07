@@ -96,11 +96,12 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "muon_lr": 0.02,
-    "adamw_lr": 0.0003,
+    "muon_lr": 0.000577839942653345,
+    "adamw_lr": 0.000144535611723143,
     "alpha": 0.5,
-    "muon_weight_decay": 0.01,
-    "adamw_weight_decay": 0.01,
+    "weight_decay": 0.0000232078200592346,
+    "dropout_rate": 0.1612913553466272,
+    "batch_size": 32,
 }
 
 wandb.init(
@@ -115,7 +116,7 @@ os.makedirs(save_dir, exist_ok=True)
 # You can modify these values if needed
 # lr = 3e-5
 epochs = 5
-train_batch_size = 32
+train_batch_size = config.batch_size
 validation_batch_size = 256
 
 # TODO1: Create batched data for DataLoader
@@ -207,33 +208,30 @@ class MultiLabelModel(torch.nn.Module):
         # hidden_size = self.roberta.config.hidden_size
 
         self.shared_dense = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, 1024),
-            torch.nn.LayerNorm(1024),
-            torch.nn.GELU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(1024, 512),
-            torch.nn.LayerNorm(512),
-            torch.nn.GELU(),
-            torch.nn.Dropout(0.1),
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(config.dropout_rate),
+            # torch.nn.Linear(hidden_size, hidden_size),
+            # torch.nn.ReLU(),
+            # torch.nn.Dropout(config.dropout_rate),
         )
 
+        # self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
+        # self.activation = torch.nn.ReLU()
+        # self.dropout = torch.nn.Dropout(config.dropout_rate)
+
         self.regression_head = torch.nn.Sequential(
-            torch.nn.Linear(512, 256),
-            torch.nn.GELU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 256),
-            torch.nn.GELU(),
+            torch.nn.Linear(hidden_size, 256),
+            torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
             torch.nn.Linear(256, 1),  # [0, 5]
+            torch.nn.Sigmoid(),
         )
 
         self.classification_head = torch.nn.Sequential(
-            torch.nn.Linear(512, 256),
-            torch.nn.GELU(),
+            torch.nn.Linear(hidden_size, 256),
+            torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 256),
-            torch.nn.GELU(),
-            torch.nn.Dropout(0.2),
             torch.nn.Linear(256, 3),  # 0, 1, 2
         )
 
@@ -256,7 +254,9 @@ class MultiLabelModel(torch.nn.Module):
         # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
         shared_features = self.shared_dense(cls_representation)
-        regression_output = torch.clamp(self.regression_head(shared_features), 0, 5)
+        regression_output = (
+            self.regression_head(shared_features) * 5
+        )  # [0, 1] -> [0, 5]
         classification_output = self.classification_head(shared_features)
 
         return {
@@ -298,15 +298,8 @@ adamw_params = [
 ]
 
 optimizer = [
-    SingleDeviceMuon(
-        muon_params, lr=config.muon_lr, weight_decay=config.muon_weight_decay
-    ),
-    torch.optim.AdamW(
-        adamw_params,
-        lr=config.adamw_lr,
-        betas=(0.9, 0.95),
-        weight_decay=config.adamw_weight_decay,
-    ),
+    SingleDeviceMuon(muon_params, lr=config.muon_lr),
+    torch.optim.AdamW(adamw_params, lr=config.adamw_lr),
 ]
 
 # TODO3-2: Define your loss functions (you should have two)
@@ -496,6 +489,3 @@ wandb.log(
 )
 
 wandb.finish()
-
-if os.path.exists(f"{save_dir}/best_model.ckpt"):
-    os.remove(f"{save_dir}/best_model.ckpt")

@@ -3,15 +3,20 @@ method: bayes
 metric:
   name: test_combined_score
   goal: maximize
-early_terminate:
-  type: hyperband
-  min_iter: 3
 parameters:
   adamw_lr:
     distribution: log_uniform_values
-    min: 0.000144
-    max: 0.000145
+    min: 0.00015
+    max: 0.00045
   muon_lr:
     distribution: log_uniform_values
-    min: 0.00038632617798059867
-    max: 0.000717462901963969
+    min: 0.01
+    max: 0.03
+  adamw_weight_decay:
+    distribution: uniform
+    min: 0.005
+    max: 0.015
+  muon_weight_decay:
+    distribution: uniform
+    min: 0.005
+    max: 0.015

@@ -96,11 +96,12 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "muon_lr": 0.02,
-    "adamw_lr": 0.0003,
+    "muon_lr": 0.000577839942653345,
+    "adamw_lr": 0.000144535611723143,
     "alpha": 0.5,
-    "muon_weight_decay": 0.01,
-    "adamw_weight_decay": 0.01,
+    "weight_decay": 0.0000232078200592346,
+    "dropout_rate": 0.1612913553466272,
+    "batch_size": 32,
 }
 
 wandb.init(
@@ -115,7 +116,7 @@ os.makedirs(save_dir, exist_ok=True)
 # You can modify these values if needed
 # lr = 3e-5
 epochs = 5
-train_batch_size = 32
+train_batch_size = config.batch_size
 validation_batch_size = 256
 
 # TODO1: Create batched data for DataLoader
@@ -298,15 +299,8 @@ adamw_params = [
 ]
 
 optimizer = [
-    SingleDeviceMuon(
-        muon_params, lr=config.muon_lr, weight_decay=config.muon_weight_decay
-    ),
-    torch.optim.AdamW(
-        adamw_params,
-        lr=config.adamw_lr,
-        betas=(0.9, 0.95),
-        weight_decay=config.adamw_weight_decay,
-    ),
+    SingleDeviceMuon(muon_params, lr=config.muon_lr),
+    torch.optim.AdamW(adamw_params, lr=config.adamw_lr),
 ]
 
 # TODO3-2: Define your loss functions (you should have two)
