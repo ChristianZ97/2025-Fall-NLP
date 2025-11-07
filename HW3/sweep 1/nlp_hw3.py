@@ -96,10 +96,10 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "muon_lr": 0.000577839942653345,
-    "adamw_lr": 0.000144535611723143,
+    "muon_lr": 0.00057784,
+    "adamw_lr": 0.00014454,
     "alpha": 0.5,
-    "weight_decay": 0.0000232078200592346,
+    "weight_decay": 0.000023208,
     "dropout_rate": 0.05,
     "batch_size": 32,
 }
@@ -115,7 +115,7 @@ os.makedirs(save_dir, exist_ok=True)
 # Define the hyperparameters
 # You can modify these values if needed
 # lr = 3e-5
-epochs = 3
+epochs = 10
 train_batch_size = config.batch_size
 validation_batch_size = 256
 

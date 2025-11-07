@@ -29,7 +29,10 @@ import time
 import numpy as np
 import random
 import os
-from torch.cuda.amp import autocast
+
+# from torch.cuda.amp import autocast
+import torch.nn.functional as F
+from transformers import get_cosine_schedule_with_warmup
 
 os.makedirs("./saved_models", exist_ok=True)
 
@@ -102,6 +105,7 @@ default_config = {
     "weight_decay": 0.0000232078200592346,
     "dropout_rate": 0.05,
     "batch_size": 32,
+    # "warmup_ratio": 0.1,
 }
 
 wandb.init(
@@ -115,7 +119,7 @@ os.makedirs(save_dir, exist_ok=True)
 # Define the hyperparameters
 # You can modify these values if needed
 # lr = 3e-5
-epochs = 3
+epochs = 4
 train_batch_size = config.batch_size
 validation_batch_size = 256
 
@@ -207,23 +211,27 @@ class MultiLabelModel(torch.nn.Module):
         hidden_size = self.bert.config.hidden_size
         # hidden_size = self.roberta.config.hidden_size
 
-        self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
+        self.shared_dense = torch.nn.Linear(hidden_size, hidden_size * 2)
         self.activation = torch.nn.ReLU()
+        # self.activation = torch.nn.GELU()
+        # self.linear = torch.nn.Linear(hidden_size, hidden_size * 2, bias=False)
         self.dropout = torch.nn.Dropout(config.dropout_rate)
 
         self.regression_head = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, 256),
+            torch.nn.Linear(hidden_size * 2, 512),
             torch.nn.ReLU(),
+            # torch.nn.GELU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 1),  # [0, 5]
+            torch.nn.Linear(512, 1),  # [0, 5]
             torch.nn.Sigmoid(),
         )
 
         self.classification_head = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, 256),
+            torch.nn.Linear(hidden_size * 2, 512),
             torch.nn.ReLU(),
+            # torch.nn.GELU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 3),  # 0, 1, 2
+            torch.nn.Linear(512, 3),  # 0, 1, 2
         )
 
     def forward(self, **kwargs):
@@ -247,6 +255,11 @@ class MultiLabelModel(torch.nn.Module):
         shared_features = self.dropout(
             self.activation(self.shared_dense(cls_representation))
         )
+        # Implement SwiGLU
+        # gated_features, gate = self.linear(cls_representation).chunk(2, dim=-1)
+        # shared_features = F.silu(gate) * gated_features
+        # shared_features = self.dropout(shared_features)
+
         regression_output = (
             self.regression_head(shared_features) * 5
         )  # [0, 1] -> [0, 5]
@@ -269,6 +282,7 @@ muon_params = [
     for layer in [
         model.bert,
         # model.roberta,
+        # model.linear,
         model.shared_dense,
         model.regression_head,
         model.classification_head,
@@ -282,6 +296,7 @@ adamw_params = [
     for layer in [
         model.bert,
         # model.roberta,
+        # model.linear,
         model.shared_dense,
         model.regression_head,
         model.classification_head,
@@ -294,6 +309,21 @@ optimizer = [
     SingleDeviceMuon(muon_params, lr=config.muon_lr),
     torch.optim.AdamW(adamw_params, lr=config.adamw_lr),
 ]
+
+# num_training_steps = epochs * len(dl_train)
+# num_warmup_steps = int(num_training_steps * config.warmup_ratio)
+
+# scheduler_muon = get_cosine_schedule_with_warmup(
+#    optimizer[0],
+#    num_warmup_steps=num_warmup_steps,
+#    num_training_steps=num_training_steps,
+# )
+
+# scheduler_adamw = get_cosine_schedule_with_warmup(
+#    optimizer[1],
+#    num_warmup_steps=num_warmup_steps,
+#    num_training_steps=num_training_steps,
+# )
 
 # TODO3-2: Define your loss functions (you should have two)
 # Write your code here
@@ -351,6 +381,9 @@ for ep in range(epochs):
 
         optimizer[0].step()
         optimizer[1].step()
+
+        # scheduler_muon.step()
+        # scheduler_adamw.step()
 
         pbar.set_postfix(loss=loss.item())
         batch_size = batch["input_ids"].shape[0]
