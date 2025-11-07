@@ -1,0 +1,102 @@
+SYSTEMATIC HYPERPARAMETER OPTIMIZATION PIPELINE
+================================================
+
+SWEEP 1: INITIAL BROAD EXPLORATION (Bayesian Optimization)
+----------------------------------------------------------
+Objective: Identify optimal dropout rate and batch size while 
+exploring learning rate ranges
+
+Search Strategy: Bayesian optimization
+Search Space:
+  - muon_lr: log_uniform_values [0.00005, 0.001]
+  - adamw_lr: log_uniform_values [0.00005, 0.001]
+  - dropout_rate: discrete values [0.05, 0.1, 0.15, 0.2]
+  - batch_size: discrete values [32, 64, 128, 256, 512]
+
+Result: 
+  - Fixed parameters: dropout_rate=0.05, batch_size=32
+  - Achieved: 88% test combined score
+  - Best learning rates identified
+
+
+SWEEP 2: ERROR-DRIVEN REGULARIZATION ANALYSIS (Random Search)
+--------------------------------------------------------------
+Objective: Conduct error analysis on Sweep 1 baseline and 
+identify regularization requirements
+
+Methodology:
+  1. Extract error predictions from best Sweep 1 model
+  2. Perform systematic error analysis across:
+     - Regression task: Mean error 0.70 on [0,5] scale
+     - Classification task: 37.9% error rate
+     - By class breakdown:
+       * Entailment: 21.6% error rate
+       * Neutral: 81.6% error rate (PRIMARY BOTTLENECK)
+       * Contradiction: 40.8% error rate
+  3. Identify neutral class as critical failure point
+  4. Investigate optimal weight_decay values
+
+Search Strategy: Random search with fixed learning rates
+Rationale: Weight decay is key regularization parameter; 
+         neutral class requires targeted investigation
+
+Search Space:
+  - muon_lr: fixed [0.000577839942653345]
+  - adamw_lr: fixed [0.000144535611723143]
+  - adamw_weight_decay: uniform [0.0, 0.05]
+  - muon_weight_decay: uniform [0.0, 0.05]
+
+Key Finding: Classification loss requires emphasis;
+             neutral class misclassification dominates errors
+
+
+SWEEP 3: TARGETED TASK-SPECIFIC OPTIMIZATION (Bayesian Optimization)
+---------------------------------------------------------------------
+Objective: Address identified class imbalance in classification 
+task and optimize optimizer-specific parameters
+
+Methodology:
+  Based on Sweep 2 error analysis showing:
+  - Neutral class 81.6% error rate
+  - Model systematically misclassifies neutral as entailment
+  - Regular CrossEntropyLoss treats all classes equally
+  
+  Implement class-weighted loss:
+    class_weights = [1.0, 5.4, 2.1] for [entailment, neutral, contradiction]
+    weighted_ce_loss = CrossEntropyLoss(weight=class_weights)
+
+Search Strategy: Bayesian optimization with class weights
+Rationale: Bayesian search can efficiently explore interactions
+          between weight_decay and momentum parameters
+
+Search Space:
+  - muon_lr: fixed [0.000577839942653345]
+  - adamw_lr: fixed [0.000144535611723143]
+  - muon_momentum: continuous [0.9, 0.99]
+  - adamw_weight_decay: continuous [optimized from Sweep 2]
+  - muon_weight_decay: continuous [optimized from Sweep 2]
+  - class_weights: enabled with ratios based on error rates
+
+Expected Improvement Path:
+  Sweep 1 baseline (88%) 
+    → Sweep 2 identifies weight_decay effect
+    → Sweep 3 with class weights and momentum tuning
+    → Target: >90% combined score
+
+
+SUMMARY OF SYSTEMATIC APPROACH
+-------------------------------
+This three-stage pipeline embodies data-driven optimization:
+
+Stage 1: Broad search identifies critical hyperparameters 
+         (dropout, batch_size, learning rate ranges)
+
+Stage 2: Error analysis discovers task-specific failure modes
+         and guides regularization strategy
+
+Stage 3: Targeted optimization addresses identified bottlenecks
+         (neutral class imbalance) with theoretically-grounded
+         modifications (weighted loss functions)
+
+Each stage informs the next, reducing search space while 
+increasing solution quality and interpretability.
