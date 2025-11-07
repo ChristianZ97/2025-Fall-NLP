@@ -6,13 +6,5 @@ metric:
 parameters:
   muon_lr:
     distribution: log_uniform_values
-    min: 0.0005
-    max: 0.002
-  adamw_lr:
-    distribution: log_uniform_values
-    min: 0.0001
-    max: 0.00015
-  dropout_rate:
-    distribution: uniform
-    min: 0.05
-    max: 0.2
+    min: 0.0045
+    max: 0.0085
