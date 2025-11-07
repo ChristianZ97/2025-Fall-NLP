@@ -3,24 +3,23 @@ method: bayes
 metric:
   name: test_combined_score
   goal: maximize
+early_terminate:
+  type: hyperband
+  min_iter: 3
 parameters:
-  adamw_lr: # 0.00014440709898314
+  adamw_lr:
     distribution: log_uniform_values
     min: 8.688541132078234e-05
     max: 0.0002027326264151588
-  muon_lr: # 0.000570533273915737
+  muon_lr:
     distribution: log_uniform_values
     min: 0.0003446972611780129
     max: 0.0008042936094153634
-  adamw_weight_decay: # 0.0358781442720464
+  adamw_weight_decay:
     distribution: uniform
     min: 0.01149455138296517
     max: 0.04597820553186068
-  muon_weight_decay: # 0.0336472354297785
+  muon_weight_decay:
     distribution: uniform
     min: 0.011728089546024915
     max: 0.04691235818409966
-  muon_momentum:
-    distribution: uniform
-    min: 0.9
-    max: 0.99

@@ -96,14 +96,13 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "muon_lr": 0.000570533273915737,
-    "adamw_lr": 0.00014440709898314,
+    "muon_lr": 0.000577839942653345,
+    "adamw_lr": 0.000144535611723143,
     "alpha": 0.5,
     "dropout_rate": 0.05,
     "batch_size": 32,
-    "muon_weight_decay": 0.0336472354297785,
-    "adamw_weight_decay": 0.0358781442720464,
-    "muon_momentum": 0.95,
+    "muon_weight_decay": 0.0,
+    "adamw_weight_decay": 0.01,
 }
 
 wandb.init(
@@ -294,10 +293,7 @@ adamw_params = [
 
 optimizer = [
     SingleDeviceMuon(
-        muon_params,
-        lr=config.muon_lr,
-        weight_decay=config.muon_weight_decay,
-        muon_momentum=config.muon_momentum,
+        muon_params, lr=config.muon_lr, weight_decay=config.muon_weight_decay
     ),
     torch.optim.AdamW(
         adamw_params, lr=config.adamw_lr, weight_decay=config.adamw_weight_decay
