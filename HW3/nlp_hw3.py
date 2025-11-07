@@ -211,9 +211,9 @@ class MultiLabelModel(torch.nn.Module):
             torch.nn.Linear(hidden_size, hidden_size),
             torch.nn.ReLU(),
             torch.nn.Dropout(config.dropout_rate),
-            torch.nn.Linear(hidden_size, hidden_size),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(config.dropout_rate),
+            # torch.nn.Linear(hidden_size, hidden_size),
+            # torch.nn.ReLU(),
+            # torch.nn.Dropout(config.dropout_rate),
         )
 
         # self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
