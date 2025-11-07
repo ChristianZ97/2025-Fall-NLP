@@ -209,12 +209,10 @@ class MultiLabelModel(torch.nn.Module):
 
         self.shared_dense = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, hidden_size),
-            # torch.nn.ReLU(),
-            torch.nn.GELU(),
+            torch.nn.ReLU(),
             torch.nn.Dropout(config.dropout_rate),
             torch.nn.Linear(hidden_size, hidden_size),
-            # torch.nn.ReLU(),
-            torch.nn.GELU(),
+            torch.nn.ReLU(),
             torch.nn.Dropout(config.dropout_rate),
         )
 
@@ -224,8 +222,7 @@ class MultiLabelModel(torch.nn.Module):
 
         self.regression_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
-            # torch.nn.ReLU(),
-            torch.nn.GELU(),
+            torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
             torch.nn.Linear(256, 1),  # [0, 5]
             torch.nn.Sigmoid(),
@@ -233,8 +230,7 @@ class MultiLabelModel(torch.nn.Module):
 
         self.classification_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
-            # torch.nn.ReLU(),
-            torch.nn.GELU(),
+            torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
             torch.nn.Linear(256, 3),  # 0, 1, 2
         )
