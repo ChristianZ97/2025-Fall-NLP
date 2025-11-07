@@ -520,5 +520,5 @@ if os.path.exists(f"{save_dir}/best_model.ckpt"):
 
 import json
 
-with open(f"{save_dir}/error_analysis.json", "w", encoding="utf-8") as f:
+with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
     json.dump(all_errors, f, indent=2, ensure_ascii=False)
