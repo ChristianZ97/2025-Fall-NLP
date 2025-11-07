@@ -100,7 +100,7 @@ default_config = {
     "adamw_lr": 0.000144535611723143,
     "alpha": 0.5,
     "weight_decay": 0.0000232078200592346,
-    "dropout_rate": 0.05,
+    "dropout_rate": 0.1612913553466272,
     "batch_size": 32,
 }
 
@@ -207,13 +207,25 @@ class MultiLabelModel(torch.nn.Module):
         hidden_size = self.bert.config.hidden_size
         # hidden_size = self.roberta.config.hidden_size
 
-        self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
-        self.activation = torch.nn.ReLU()
-        self.dropout = torch.nn.Dropout(config.dropout_rate)
+        self.shared_dense = torch.nn.Sequential(
+            torch.nn.Linear(hidden_size, hidden_size),
+            # torch.nn.ReLU(),
+            torch.nn.GELU(),
+            torch.nn.Dropout(config.dropout_rate),
+            torch.nn.Linear(hidden_size, hidden_size),
+            # torch.nn.ReLU(),
+            torch.nn.GELU(),
+            torch.nn.Dropout(config.dropout_rate),
+        )
+
+        # self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
+        # self.activation = torch.nn.ReLU()
+        # self.dropout = torch.nn.Dropout(config.dropout_rate)
 
         self.regression_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
-            torch.nn.ReLU(),
+            # torch.nn.ReLU(),
+            torch.nn.GELU(),
             torch.nn.Dropout(0.1),
             torch.nn.Linear(256, 1),  # [0, 5]
             torch.nn.Sigmoid(),
@@ -221,7 +233,8 @@ class MultiLabelModel(torch.nn.Module):
 
         self.classification_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
-            torch.nn.ReLU(),
+            # torch.nn.ReLU(),
+            torch.nn.GELU(),
             torch.nn.Dropout(0.1),
             torch.nn.Linear(256, 3),  # 0, 1, 2
         )
@@ -244,9 +257,7 @@ class MultiLabelModel(torch.nn.Module):
         cls_representation = bert_output.last_hidden_state[:, 0, :]
         # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
-        shared_features = self.dropout(
-            self.activation(self.shared_dense(cls_representation))
-        )
+        shared_features = self.shared_dense(cls_representation)
         regression_output = (
             self.regression_head(shared_features) * 5
         )  # [0, 1] -> [0, 5]
