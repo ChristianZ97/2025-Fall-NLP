@@ -153,8 +153,6 @@ def collate_fn(batch):
 
     return {
         "sentence_pair_id": pair_ids,
-        "premise": premises,
-        "hypothesis": hypotheses,
         "input_ids": encoded["input_ids"],
         "attention_mask": encoded["attention_mask"],
         "token_type_ids": encoded["token_type_ids"],
@@ -449,10 +447,14 @@ model.eval()
 # Please implement the test loop to evaluate the model on the test dataset
 # We will have 10% of the total score for the test accuracy and pearson correlation
 
-# 在 test loop 中添加
 with torch.no_grad():
-    all_errors = []  # 新增
-
+    pearson_corr = 0
+    accuracy = 0
+    all_reg_preds = []
+    all_reg_targets = []
+    all_clf_preds = []
+    all_clf_targets = []
+    all_errors = []
     for batch in pbar:
         batch = {
             k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v
@@ -460,29 +462,27 @@ with torch.no_grad():
         }
         outputs = model(**batch)
 
-        # 計算預測
         reg_pred = outputs["relatedness_score"].squeeze().cpu().numpy()
         reg_target = batch["relatedness_score"].cpu().numpy()
+        all_reg_preds.extend(reg_pred)
+        all_reg_targets.extend(reg_target)
 
         clf_pred = torch.argmax(outputs["entailment_judgment"], dim=1).cpu().numpy()
         clf_target = batch["entailment_judgment"].cpu().numpy()
+        all_clf_preds.extend(clf_pred)
+        all_clf_targets.extend(clf_target)
 
-        # ← 新增：收集錯誤資訊
         batch_size = batch["input_ids"].shape[0]
-        pair_ids = batch["sentence_pair_id"]  # 你的 batch 有這個
+        pair_ids = batch["sentence_pair_id"]
 
         for i in range(batch_size):
             reg_error = abs(reg_pred[i] - reg_target[i])
             clf_correct = clf_pred[i] == clf_target[i]
-
-            # 只記錄出錯的（或設定誤差閾值）
             if reg_error > 0.5 or not clf_correct:  # 誤差 > 0.5 或分類錯誤
                 all_errors.append(
                     {
                         "pair_id": pair_ids[i],
-                        "premise": (
-                            batch["premise"][i] if "premise" in batch else ""
-                        ),  # 需要保存
+                        "premise": (batch["premise"][i] if "premise" in batch else ""),
                         "hypothesis": (
                             batch["hypothesis"][i] if "hypothesis" in batch else ""
                         ),
@@ -495,16 +495,14 @@ with torch.no_grad():
                     }
                 )
 
-        all_reg_preds.extend(reg_pred)
-        all_reg_targets.extend(reg_target)
-        all_clf_preds.extend(clf_pred)
-        all_clf_targets.extend(clf_target)
+    pearson_result = psr.compute(predictions=all_reg_preds, references=all_reg_targets)
+    pearson_corr = pearson_result["pearsonr"]
 
-# 保存為 JSON
-import json
+    accuracy_result = acc.compute(predictions=all_clf_preds, references=all_clf_targets)
+    accuracy = accuracy_result["accuracy"]
 
-with open(f"{save_dir}/error_analysis.json", "w", encoding="utf-8") as f:
-    json.dump(all_errors, f, indent=2, ensure_ascii=False)
+    combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
+    print(f"Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
 
 
 wandb.log(
@@ -519,3 +517,8 @@ wandb.finish()
 
 if os.path.exists(f"{save_dir}/best_model.ckpt"):
     os.remove(f"{save_dir}/best_model.ckpt")
+
+import json
+
+with open(f"{save_dir}/error_analysis.json", "w", encoding="utf-8") as f:
+    json.dump(all_errors, f, indent=2, ensure_ascii=False)

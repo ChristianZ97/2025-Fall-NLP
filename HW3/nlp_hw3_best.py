@@ -96,11 +96,14 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "muon_lr": 0.000577839942653345,
-    "adamw_lr": 0.000144535611723143,
+    "muon_lr": 0.000570533273915737,
+    "adamw_lr": 0.00014440709898314,
     "alpha": 0.5,
     "dropout_rate": 0.05,
     "batch_size": 32,
+    "muon_weight_decay": 0.0336472354297785,
+    "adamw_weight_decay": 0.0358781442720464,
+    "muon_momentum": 0.95,
 }
 
 wandb.init(
@@ -206,9 +209,11 @@ class MultiLabelModel(torch.nn.Module):
         hidden_size = self.bert.config.hidden_size
         # hidden_size = self.roberta.config.hidden_size
 
-        self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
-        self.activation = torch.nn.ReLU()
-        self.dropout = torch.nn.Dropout(config.dropout_rate)
+        self.shared_dense = torch.nn.Sequential(
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(config.dropout_rate),
+        )
 
         self.regression_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
@@ -243,9 +248,7 @@ class MultiLabelModel(torch.nn.Module):
         cls_representation = bert_output.last_hidden_state[:, 0, :]
         # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
-        shared_features = self.dropout(
-            self.activation(self.shared_dense(cls_representation))
-        )
+        shared_features = self.shared_dense(cls_representation)
         regression_output = (
             self.regression_head(shared_features) * 5
         )  # [0, 1] -> [0, 5]
@@ -290,8 +293,15 @@ adamw_params = [
 ]
 
 optimizer = [
-    SingleDeviceMuon(muon_params, lr=config.muon_lr),
-    torch.optim.AdamW(adamw_params, lr=config.adamw_lr),
+    SingleDeviceMuon(
+        muon_params,
+        lr=config.muon_lr,
+        weight_decay=config.muon_weight_decay,
+        momentum=config.muon_momentum,
+    ),
+    torch.optim.AdamW(
+        adamw_params, lr=config.adamw_lr, weight_decay=config.adamw_weight_decay
+    ),
 ]
 
 # TODO3-2: Define your loss functions (you should have two)
@@ -481,3 +491,6 @@ wandb.log(
 )
 
 wandb.finish()
+
+if os.path.exists(f"{save_dir}/best_model.ckpt"):
+    os.remove(f"{save_dir}/best_model.ckpt")
