@@ -102,7 +102,7 @@ default_config = {
     "dropout_rate": 0.05,
     "batch_size": 32,
     "muon_weight_decay": 0.0,
-    "adamw_weight_decay": 0.0,
+    "adamw_weight_decay": 0.01,
 }
 
 wandb.init(
