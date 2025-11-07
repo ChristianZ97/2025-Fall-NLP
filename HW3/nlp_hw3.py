@@ -101,8 +101,8 @@ default_config = {
     "alpha": 0.5,
     "dropout_rate": 0.05,
     "batch_size": 32,
-    "muon_weight_decay": 0.01,
-    "adamw_weight_decay": 0.01,
+    "muon_weight_decay": 0.0,
+    "adamw_weight_decay": 0.0,
 }
 
 wandb.init(
@@ -116,7 +116,7 @@ os.makedirs(save_dir, exist_ok=True)
 # Define the hyperparameters
 # You can modify these values if needed
 # lr = 3e-5
-epochs = 5
+epochs = 3
 train_batch_size = config.batch_size
 validation_batch_size = 256
 
@@ -209,33 +209,23 @@ class MultiLabelModel(torch.nn.Module):
         # hidden_size = self.roberta.config.hidden_size
 
         self.shared_dense = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, 1024),
-            torch.nn.LayerNorm(1024),
-            torch.nn.GELU(),
-            torch.nn.Dropout(config.dropout_rate),
-            torch.nn.Linear(1024, 512),
-            torch.nn.LayerNorm(512),
-            torch.nn.GELU(),
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.ReLU(),
             torch.nn.Dropout(config.dropout_rate),
         )
 
         self.regression_head = torch.nn.Sequential(
-            torch.nn.Linear(512, 256),
-            torch.nn.GELU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 256),
-            torch.nn.GELU(),
+            torch.nn.Linear(hidden_size, 256),
+            torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
             torch.nn.Linear(256, 1),  # [0, 5]
+            torch.nn.Sigmoid(),
         )
 
         self.classification_head = torch.nn.Sequential(
-            torch.nn.Linear(512, 256),
-            torch.nn.GELU(),
+            torch.nn.Linear(hidden_size, 256),
+            torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 256),
-            torch.nn.GELU(),
-            torch.nn.Dropout(0.2),
             torch.nn.Linear(256, 3),  # 0, 1, 2
         )
 
@@ -257,8 +247,12 @@ class MultiLabelModel(torch.nn.Module):
         cls_representation = bert_output.last_hidden_state[:, 0, :]
         # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
-        shared_features = self.shared_dense(cls_representation)
-        regression_output = torch.clamp(self.regression_head(shared_features), 0, 5)
+        shared_features = self.dropout(
+            self.activation(self.shared_dense(cls_representation))
+        )
+        regression_output = (
+            self.regression_head(shared_features) * 5
+        )  # [0, 1] -> [0, 5]
         classification_output = self.classification_head(shared_features)
 
         return {
