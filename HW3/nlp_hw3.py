@@ -296,10 +296,7 @@ optimizer = [
         muon_params, lr=config.muon_lr, weight_decay=config.muon_weight_decay
     ),
     torch.optim.AdamW(
-        adamw_params,
-        lr=config.adamw_lr,
-        betas=(0.9, 0.95),
-        weight_decay=config.adamw_weight_decay,
+        adamw_params, lr=config.adamw_lr, weight_decay=config.adamw_weight_decay
     ),
 ]
 
