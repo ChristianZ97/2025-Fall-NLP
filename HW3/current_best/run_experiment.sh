@@ -32,10 +32,13 @@ for script in "${SCRIPTS[@]}"; do
         python "${script}" > "${log_file}" 2>&1
         
         # 提取數據
-        epoch1=$(grep "Epoch 1:" "${log_file}" | grep -oP 'Pearson=\K[0-9.]+|Accuracy=\K[0-9.]+|Combine=\K[0-9.]+' | tr '\n' ',' | sed 's/,$//')
-        epoch2=$(grep "Epoch 2:" "${log_file}" | grep -oP 'Pearson=\K[0-9.]+|Accuracy=\K[0-9.]+|Combine=\K[0-9.]+' | tr '\n' ',' | sed 's/,$//')
-        epoch3=$(grep "Epoch 3:" "${log_file}" | grep -oP 'Pearson=\K[0-9.]+|Accuracy=\K[0-9.]+|Combine=\K[0-9.]+' | tr '\n' ',' | sed 's/,$//')
-        test=$(grep "^Test:" "${log_file}" | grep -oP 'Pearson=\K[0-9.]+|Accuracy=\K[0-9.]+|Combine=\K[0-9.]+' | tr '\n' ',' | sed 's/,$//')
+        # 修正：正規表示式新增對負號 "-" 的支援
+        epoch1=$(grep "Epoch 1:" "${log_file}" | grep -oP 'Pearson=\K[-0-9.]+|Accuracy=\K[-0-9.]+|Combine=\K[-0-9.]+' | tr '\n' ',' | sed 's/,$//')
+        epoch2=$(grep "Epoch 2:" "${log_file}" | grep -oP 'Pearson=\K[-0-9.]+|Accuracy=\K[-0-9.]+|Combine=\K[-0-9.]+' | tr '\n' ',' | sed 's/,$//')
+        epoch3=$(grep "Epoch 3:" "${log_file}" | grep -oP 'Pearson=\K[-0-9.]+|Accuracy=\K[-0-9.]+|Combine=\K[-0-9.]+' | tr '\n' ',' | sed 's/,$//')
+        test=$(grep "^Test:" "${log_file}" | grep -oP 'Pearson=\K[-0-9.]+|Accuracy=\K[-0-9.]+|Combine=\K[-0-9.]+' | tr '\n' ',' | sed 's/,$//')
+
+        
         
         # 寫入 CSV
         echo "${script},${run},${epoch1},${epoch2},${epoch3},${test}" >> "${SUMMARY_CSV}"

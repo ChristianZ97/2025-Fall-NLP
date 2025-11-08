@@ -372,7 +372,7 @@ for ep in range(epochs):
 
         combined_score = 0.5 * pearson_corr + 0.5 * accuracy
         print(
-            f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combine={combined_score:.4f}"
+            f"Epoch {ep+1}: Pearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}"
         )
 
         if combined_score > best_score:
