@@ -96,13 +96,13 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "muon_lr": 0.000570533273915737,
-    "adamw_lr": 0.00014440709898314,
+    "muon_lr": 0.000570946127776095,
+    "adamw_lr": 0.000144505377143309,
     "alpha": 0.5,
     "dropout_rate": 0.05,
     "batch_size": 32,
-    "muon_weight_decay": 0.0336472354297785,
-    "adamw_weight_decay": 0.0358781442720464,
+    "muon_weight_decay": 0.0330037215159045,
+    "adamw_weight_decay": 0.0352225102350684,
     "muon_momentum": 0.95,
 }
 
