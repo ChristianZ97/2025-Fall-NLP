@@ -420,5 +420,5 @@ with torch.no_grad():
 
     combined_score = 0.5 * pearson_corr + 0.5 * accuracy
     print(
-        f"\nTest: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combine={combined_score:.4f}"
+        f"\nTest: Pearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}"
     )
