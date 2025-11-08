@@ -10,17 +10,13 @@ parameters:
     max: 0.000145
   muon_lr: # 0.000570533273915737
     distribution: log_uniform_values
-    min: 0.000565
-    max: 0.000575
+    min: 0.000570
+    max: 0.000571
   adamw_weight_decay: # 0.0358781442720464
     distribution: uniform
-    min: 0.03
-    max: 0.04
+    min: 0.035
+    max: 0.036
   muon_weight_decay: # 0.0336472354297785
     distribution: uniform
-    min: 0.03
-    max: 0.04
-  muon_momentum:
-    distribution: uniform
-    min: 0.9
-    max: 0.99
+    min: 0.033
+    max: 0.034

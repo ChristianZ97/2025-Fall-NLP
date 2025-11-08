@@ -251,8 +251,8 @@ class MultiLabelModel(torch.nn.Module):
 
         shared_features = self.shared_dense(cls_representation)
         regression_output = (
-            self.regression_head(shared_features)
-        ) * 5  # [-1, 1] -> [0, 5]
+            self.regression_head(shared_features) * 5
+        )  # [0, 1] -> [0, 5]
         classification_output = self.classification_head(shared_features)
 
         return {

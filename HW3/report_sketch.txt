@@ -100,3 +100,40 @@ Stage 3: Targeted optimization addresses identified bottlenecks
 
 Each stage informs the next, reducing search space while 
 increasing solution quality and interpretability.
+
+
+## Systematic Error Analysis and Attempted Improvements
+
+### Analysis Results
+Error analysis identified two key issues:
+1. Neutral class: 81.6% error rate
+2. Regression boundary bias: scores 0-2, 5 had 20% higher errors
+
+### Attempted Solutions
+
+#### Activation Function (Tanh)
+Replaced Sigmoid with Tanh to address boundary bias.
+- Result: Pearson improved (+0.3%), Accuracy decreased (-0.6%)
+- Analysis: Task balance disrupted; requires re-tuning
+
+#### Loss Function (Huber, Label Smoothing)
+Tested robust loss functions to handle outliers.
+- Result: All variants performed worse (-1.5% to -2.4%)
+- Analysis: MSE is optimal for this balanced regression task
+
+#### Task-specific Adjustments
+Explored class weights, training loss rebalancing.
+- Result: No improvements; simple architecture performs best
+- Analysis: Current hyperparameters already well-tuned
+
+### Key Finding: Simplicity Wins
+Despite theoretically-motivated improvements, the baseline 
+(Sigmoid + MSE + balanced training) remained optimal (0.882).
+
+This demonstrates that:
+1. Systematic hyperparameter search found near-optimal configuration
+2. Task characteristics (balanced classes, moderate scale) 
+   favor simple, well-regularized models
+3. Further gains likely require larger models (BERT-large) 
+   or ensemble methods
+
