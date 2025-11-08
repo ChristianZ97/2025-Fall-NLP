@@ -19,7 +19,7 @@ for param in ${PARAM_RANGE}; do
     for run in $(seq 1 ${RUNS}); do
         echo "Running ${SCRIPT} with param -${param}, run ${run}/${RUNS}"
         log_file="${OUTPUT_DIR}/${SCRIPT%.py}_param${param}_run${run}.log"
-        python "${SCRIPT}" "-${param}" > "${log_file}" 2>&1
+        python "${SCRIPT}" "${param}" > "${log_file}" 2>&1
         
         epoch1=$(grep "Epoch 1:" "${log_file}" | grep -oP 'Pearson=\K[-0-9.]+|Accuracy=\K[-0-9.]+|Combine=\K[-0-9.]+' | tr '\n' ',' | sed 's/,$//')
         epoch2=$(grep "Epoch 2:" "${log_file}" | grep -oP 'Pearson=\K[-0-9.]+|Accuracy=\K[-0-9.]+|Combine=\K[-0-9.]+' | tr '\n' ',' | sed 's/,$//')
