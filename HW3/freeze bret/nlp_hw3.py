@@ -272,7 +272,7 @@ model = MultiLabelModel().to(device)
 muon_params = [
     p
     for layer in [
-        # model.bert,
+        model.bert,
         model.shared_dense,
         model.regression_head,
         model.classification_head,
@@ -284,7 +284,7 @@ muon_params = [
 adamw_params = [
     p
     for layer in [
-        # model.bert,
+        model.bert,
         model.shared_dense,
         model.regression_head,
         model.classification_head,
