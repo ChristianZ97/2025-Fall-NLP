@@ -134,7 +134,7 @@ def collate_fn(batch):
         "sentence_pair_id": pair_ids,
         "input_ids": encoded["input_ids"],
         "attention_mask": encoded["attention_mask"],
-        "token_type_ids": encoded["token_type_ids"],
+        # "token_type_ids": encoded["token_type_ids"],
         "relatedness_score": relatedness_tensor,
         "entailment_judgment": entailment_tensor,
     }
@@ -214,12 +214,12 @@ class MultiLabelModel(torch.nn.Module):
 
         input_ids = kwargs["input_ids"]
         attention_mask = kwargs["attention_mask"]
-        token_type_ids = kwargs["token_type_ids"]
+        # token_type_ids = kwargs["token_type_ids"]
 
         roberta_output = self.roberta(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
+            # token_type_ids=token_type_ids,
         )
 
         cls_representation = roberta_output.last_hidden_state[:, 0, :]
