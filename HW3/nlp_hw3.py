@@ -309,18 +309,7 @@ optimizer = [
 # Write your code here
 
 criterion_regression = torch.nn.MSELoss()
-# 1 / (1 - error_rate)
-class_weights = torch.tensor(
-    [
-        1.0 / (1 - (200 / 925)),  # entailment: 21.6%
-        1.0 / (1 - (266 / 326)),  # neutral: 81.6%
-        1.0 / (1 - (119 / 292)),  # contradiction: 40.8%
-    ],
-    dtype=torch.float,
-)
-class_weights = class_weights / class_weights.sum() * 3
-print(f"Class weights: {class_weights}")
-criterion_classification = torch.nn.CrossEntropyLoss(weight=class_weights.to(device))
+criterion_classification = torch.nn.CrossEntropyLoss()
 
 # scoring functions
 psr = load("pearsonr")
