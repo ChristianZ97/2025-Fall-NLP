@@ -1,0 +1,20 @@
+program: nlp_hw3.py
+method: random
+metric:
+  name: test_combined_score
+  goal: maximize
+parameters:
+  adamw_lr: # 0.000144505377143309
+    distribution: log_uniform_values
+    min: 0.0000035
+    max: 0.00025
+  muon_lr: # 0.000570946127776095
+    distribution: log_uniform_values
+    min: 0.0001
+    max: 0.001
+  alpha:
+    distribution: uniform
+    min: 0.0
+    max: 0.2
+  freeze_layers:
+    values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
