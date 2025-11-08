@@ -98,7 +98,7 @@ class SemevalDataset(Dataset):
 default_config = {
     "muon_lr": 0.000570533273915737,
     "adamw_lr": 0.00014440709898314,
-    "alpha": 0.5,
+    "alpha": 0.3,
     "dropout_rate": 0.05,
     "batch_size": 32,
     "muon_weight_decay": 0.0336472354297785,
@@ -308,9 +308,7 @@ optimizer = [
 # Write your code here
 
 criterion_regression = torch.nn.MSELoss()
-class_weights = torch.tensor([1.0, 5.4, 2.1])
-print(f"Class weights: {class_weights}")
-criterion_classification = torch.nn.CrossEntropyLoss(weight=class_weights.to(device))
+criterion_classification = torch.nn.CrossEntropyLoss()
 
 # scoring functions
 psr = load("pearsonr")
@@ -420,8 +418,11 @@ for ep in range(epochs):
         )
         accuracy = accuracy_result["accuracy"]
 
-        combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
-        print(f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+        combined_score = 0.5 * pearson_corr + 0.5 * accuracy
+        print(
+            f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combined={combined_score:.4f}"
+        )
+
         wandb.log(
             {
                 "val_pearson": pearson_corr,
@@ -480,8 +481,10 @@ with torch.no_grad():
     accuracy_result = acc.compute(predictions=all_clf_preds, references=all_clf_targets)
     accuracy = accuracy_result["accuracy"]
 
-    combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
-    print(f"Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+    combined_score = 0.5 * pearson_corr + 0.5 * accuracy
+    print(
+        f"\nPearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combined={combined_score:.4f}"
+    )
 
 
 wandb.log(
