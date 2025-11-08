@@ -153,6 +153,8 @@ def collate_fn(batch):
 
     return {
         "sentence_pair_id": pair_ids,
+        "premise": premises,
+        "hypothesis": hypotheses,
         "input_ids": encoded["input_ids"],
         "attention_mask": encoded["attention_mask"],
         "token_type_ids": encoded["token_type_ids"],
@@ -515,9 +517,6 @@ wandb.log(
 )
 
 wandb.finish()
-
-if os.path.exists(f"{save_dir}/best_model.ckpt"):
-    os.remove(f"{save_dir}/best_model.ckpt")
 
 import json
 
