@@ -211,7 +211,7 @@ class MultiLabelModel(torch.nn.Module):
 
         self.shared_dense = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, hidden_size * 2),
-            torch.nn.LayerNorm(hidden_size),
+            torch.nn.LayerNorm(hidden_size * 2),
             torch.nn.GELU(),
             torch.nn.Dropout(config.dropout_rate),
             torch.nn.Linear(hidden_size * 2, hidden_size),
