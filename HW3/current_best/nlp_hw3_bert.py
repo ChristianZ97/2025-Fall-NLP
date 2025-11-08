@@ -150,18 +150,25 @@ dl_train = DataLoader(
     batch_size=train_batch_size,
     shuffle=True,
     collate_fn=collate_fn,
+    num_workers=min(4, os.cpu_count()),
+    pin_memory=True,
+    persistent_workers=True,
 )
 dl_validation = DataLoader(
     SemevalDataset(split="validation"),
     batch_size=validation_batch_size,
     shuffle=False,
     collate_fn=collate_fn,
+    num_workers=min(4, os.cpu_count()),
+    persistent_workers=True,
 )
 dl_test = DataLoader(
     SemevalDataset(split="test"),
     batch_size=validation_batch_size,
     shuffle=False,
     collate_fn=collate_fn,
+    num_workers=min(4, os.cpu_count()),
+    persistent_workers=True,
 )
 
 
