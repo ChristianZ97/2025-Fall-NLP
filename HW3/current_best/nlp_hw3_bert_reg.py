@@ -308,19 +308,18 @@ for ep in range(epochs):
         loss_reg = criterion_regression(
             outputs["relatedness_score"].squeeze(), batch["relatedness_score"]
         )
-        loss_clf = criterion_classification(
-            outputs["entailment_judgment"], batch["entailment_judgment"]
-        )
-        loss = 1.0 * loss_reg + 0.0 * loss_clf
+        # loss_clf = criterion_classification(
+        #    outputs["entailment_judgment"], batch["entailment_judgment"]
+        # )
 
-        loss.backward()
+        loss_reg.backward()
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
         optimizer[0].step()
         optimizer[1].step()
 
-        pbar.set_postfix(loss=loss.item())
+        pbar.set_postfix(loss=loss_reg.item())
 
     pbar = tqdm(dl_validation)
     pbar.set_description(f"Validation epoch [{ep+1}/{epochs}]")
