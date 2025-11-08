@@ -276,7 +276,7 @@ optimizer = [
 # TODO3-2: Define your loss functions (you should have two)
 # Write your code here
 
-# criterion_regression = torch.nn.MSELoss()
+criterion_regression = torch.nn.MSELoss()
 criterion_classification = torch.nn.CrossEntropyLoss()
 
 # scoring functions
@@ -307,21 +307,22 @@ for ep in range(epochs):
 
         outputs = model(**batch)
 
-        # loss_reg = criterion_regression(
-        #    outputs["relatedness_score"].squeeze(), batch["relatedness_score"]
-        # )
+        loss_reg = criterion_regression(
+            outputs["relatedness_score"].squeeze(), batch["relatedness_score"]
+        )
         loss_clf = criterion_classification(
             outputs["entailment_judgment"], batch["entailment_judgment"]
         )
+        loss = 0.0 * loss_reg + 1.0 * loss_clf
 
-        loss_clf.backward()
+        loss.backward()
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
         optimizer[0].step()
         optimizer[1].step()
 
-        pbar.set_postfix(loss=loss_clf.item())
+        pbar.set_postfix(loss=loss.item())
 
     pbar = tqdm(dl_validation)
     pbar.set_description(f"Validation epoch [{ep+1}/{epochs}]")
