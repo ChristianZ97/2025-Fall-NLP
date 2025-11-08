@@ -219,9 +219,7 @@ class MultiLabelModel(torch.nn.Module):
             torch.nn.Linear(hidden_size, 256),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 1),  # [0, 5]
-            # torch.nn.Sigmoid(),
-            torch.nn.Tanh(),
+            torch.nn.Linear(256, 1),
         )
 
         self.classification_head = torch.nn.Sequential(
