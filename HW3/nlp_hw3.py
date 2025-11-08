@@ -43,7 +43,7 @@ def set_seed(seed=42):
         torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    print(f"\n\nUsing random seed {seed}")
+    # print(f"\n\nUsing random seed {seed}")
 
 
 set_seed()
@@ -219,7 +219,7 @@ class MultiLabelModel(torch.nn.Module):
             torch.nn.Linear(hidden_size, 256),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 1),  # [0, 5]
+            torch.nn.Linear(256, 1),  # [1, 5]
             torch.nn.Tanh(),
         )
 
@@ -311,10 +311,9 @@ criterion_classification = torch.nn.CrossEntropyLoss()
 
 def consistency_loss(reg_scores, clf_logits):
     # reg_scores shape: [B, 1], clf_logits shape: [B, 3]
-    reg_scores = reg_scores.squeeze(-1)  # 安全地變為 [B]
     device = reg_scores.device
 
-    # --- 方向 1: reg_scores -> expected_reg_from_clf ---
+    # --- reg_scores -> expected_reg_from_clf ---
     E_neutral = (1.5 * 451 + 2.5 * 615 + 3.5 * 1398 + 4.5 * 326) / 2790
     E_entail = (1.5 * 1 + 2.5 * 0 + 3.5 * 65 + 4.5 * 1338) / 1404
     E_contra = (1.5 * 0 + 2.5 * 59 + 3.5 * 496 + 4.5 * 157) / 712
@@ -322,30 +321,20 @@ def consistency_loss(reg_scores, clf_logits):
 
     clf_probs = torch.softmax(clf_logits, dim=1)
     expected_reg_from_clf = (clf_probs * E_vec).sum(dim=1)  # Shape: [B]
-    reg_consis_loss = torch.nn.functional.mse_loss(
-        reg_scores, expected_reg_from_clf
-    )  # 正確的目標
+    reg_consis_loss = torch.nn.functional.mse_loss(reg_scores, expected_reg_from_clf)
 
-    # --- 方向 2: clf_logits -> expected_clf_from_reg ---
-    p_1_2 = torch.tensor([451 / 452.0, 1 / 452.0, 0 / 452.0], device=device).unsqueeze(
-        0
-    )
-    p_2_3 = torch.tensor([615 / 674.0, 0 / 674.0, 59 / 674.0], device=device).unsqueeze(
-        0
-    )
-    p_3_4 = torch.tensor(
-        [1398 / 1959.0, 65 / 1959.0, 496 / 1959.0], device=device
-    ).unsqueeze(0)
-    p_4_5 = torch.tensor(
-        [326 / 1821.0, 1338 / 1821.0, 157 / 1821.0], device=device
-    ).unsqueeze(0)
+    # --- clf_logits -> expected_clf_from_reg ---
+    p_1_2 = torch.tensor([451 / 452.0, 1 / 452.0, 0 / 452.0], device=device)
+    p_2_3 = torch.tensor([615 / 674.0, 0 / 674.0, 59 / 674.0], device=device)
+    p_3_4 = torch.tensor([1398 / 1959.0, 65 / 1959.0, 496 / 1959.0], device=device)
+    p_4_5 = torch.tensor([326 / 1821.0, 1338 / 1821.0, 157 / 1821.0], device=device)
 
     mask_1_2 = ((reg_scores >= 1.0) & (reg_scores < 2.0)).unsqueeze(-1)
     mask_2_3 = ((reg_scores >= 2.0) & (reg_scores < 3.0)).unsqueeze(-1)
     mask_3_4 = ((reg_scores >= 3.0) & (reg_scores < 4.0)).unsqueeze(-1)
     mask_4_5 = (reg_scores >= 4.0).unsqueeze(-1)
 
-    expected_clf_from_reg = (  # 透過向量化操作建構
+    expected_clf_from_reg = (
         mask_1_2 * p_1_2 + mask_2_3 * p_2_3 + mask_3_4 * p_3_4 + mask_4_5 * p_4_5
     )  # Shape: [B, 3]
 
@@ -530,7 +519,9 @@ with torch.no_grad():
     accuracy = accuracy_result["accuracy"]
 
     combined_score = 0.5 * pearson_corr + 0.5 * accuracy
-    print(f"Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+    print(
+        f"\nPearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combine={combined_score:.4f}"
+    )
 
 
 wandb.log(
@@ -545,8 +536,3 @@ wandb.finish()
 
 if os.path.exists(f"{save_dir}/best_model.ckpt"):
     os.remove(f"{save_dir}/best_model.ckpt")
-
-import json
-
-with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
-    json.dump(all_errors, f, indent=2, ensure_ascii=False)
