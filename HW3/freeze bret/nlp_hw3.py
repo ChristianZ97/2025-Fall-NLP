@@ -299,10 +299,7 @@ for i in range(config.freeze_layers):
 
 optimizer = [
     SingleDeviceMuon(
-        muon_params,
-        lr=config.muon_lr,
-        weight_decay=config.muon_weight_decay,
-        momentum=config.muon_momentum,
+        muon_params, lr=config.muon_lr, weight_decay=config.muon_weight_decay
     ),
     torch.optim.AdamW(
         adamw_params, lr=config.adamw_lr, weight_decay=config.adamw_weight_decay
