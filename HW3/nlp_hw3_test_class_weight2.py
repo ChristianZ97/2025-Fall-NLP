@@ -308,7 +308,7 @@ optimizer = [
 # Write your code here
 
 criterion_regression = torch.nn.MSELoss()
-class_weights = torch.tensor([1.0, 2.0, 1.5])
+class_weights = torch.tensor([1.0, 3.0, 1.8])
 print(f"Class weights: {class_weights}")
 criterion_classification = torch.nn.CrossEntropyLoss(weight=class_weights.to(device))
 
