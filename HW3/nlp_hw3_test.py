@@ -318,14 +318,12 @@ def consistency_loss(reg_scores, clf_logits):
     E_contra = (1.5 * 0 + 2.5 * 59 + 3.5 * 496 + 4.5 * 157) / 712
 
     clf_probs = torch.softmax(clf_logits, dim=1)
-
     expected_reg_from_clf = (
         clf_probs[:, 0] * E_neutral
         + clf_probs[:, 1] * E_entail
         + clf_probs[:, 2] * E_contra
     )
-
-    consis_loss = torch.nn.MSELoss(reg_scores, expected_reg_from_clf)
+    consis_loss = torch.nn.functional.mse_loss(reg_scores, expected_reg_from_clf)
 
     return consis_loss
 
@@ -366,7 +364,9 @@ for ep in range(epochs):
             outputs["entailment_judgment"], batch["entailment_judgment"]
         )
 
-        consis_loss = consistency_loss(loss_reg, loss_clf)
+        consis_loss = consistency_loss(
+            outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
+        )
         loss = (
             config.alpha * loss_reg + (1 - config.alpha) * loss_clf + 0.05 * consis_loss
         )
