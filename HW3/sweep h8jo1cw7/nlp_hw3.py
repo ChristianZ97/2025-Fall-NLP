@@ -12,14 +12,7 @@ Original file is located at
 #! pip install git+https://github.com/KellerJordan/Muon
 
 # from google.colab import userdata
-from transformers import (
-    BertTokenizer,
-    BertModel,
-    RobertaTokenizer,
-    RobertaModel,
-    GPT2Tokenizer,
-    GPT2Model,
-)
+from transformers import BertTokenizer, BertModel, RobertaTokenizer, RobertaModel
 from datasets import load_dataset
 from evaluate import load
 import torch
@@ -50,7 +43,7 @@ def set_seed(seed=42):
         torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    print(f"\n\nUsing random seed {seed}")
+    # print(f"\n\nUsing random seed {seed}")
 
 
 set_seed()
@@ -69,10 +62,10 @@ token_replacement = [
     ["！", "!"],
 ]
 
-# tokenizer = BertTokenizer.from_pretrained("google-bert/bert-base-uncased", cache_dir="./cache/")
+tokenizer = BertTokenizer.from_pretrained(
+    "google-bert/bert-base-uncased", cache_dir="./cache/"
+)
 # tokenizer = RobertaTokenizer.from_pretrained("FacebookAI/roberta-base", cache_dir="./cache/")
-tokenizer = GPT2Tokenizer.from_pretrained("openai-community/gpt2", cache_dir="./cache/")
-tokenizer.pad_token = tokenizer.eos_token
 
 
 class SemevalDataset(Dataset):
@@ -103,12 +96,14 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "muon_lr": 3e-5,
-    "adamw_lr": 3e-5,
-    "alpha": 0.5,
-    "weight_decay": 0.01,
-    "dropout_rate": 0.1,
-    "batch_size": 256,
+    "muon_lr": 0.000570946127776095,
+    "adamw_lr": 0.000144505377143309,
+    "alpha": 0.05,
+    "dropout_rate": 0.05,
+    "batch_size": 32,
+    "muon_weight_decay": 0.0330037215159045,
+    "adamw_weight_decay": 0.0352225102350684,
+    "muon_momentum": 0.95,
 }
 
 wandb.init(
@@ -160,7 +155,7 @@ def collate_fn(batch):
         "sentence_pair_id": pair_ids,
         "input_ids": encoded["input_ids"],
         "attention_mask": encoded["attention_mask"],
-        # "token_type_ids": encoded["token_type_ids"],
+        "token_type_ids": encoded["token_type_ids"],
         "relatedness_score": relatedness_tensor,
         "entailment_judgment": entailment_tensor,
     }
@@ -207,25 +202,25 @@ class MultiLabelModel(torch.nn.Module):
         # Please use "google-bert/bert-base-uncased" model (https://huggingface.co/google-bert/bert-base-uncased)
         # Besides the base model, you may design additional architectures by incorporating linear layers, activation functions, or other neural components.
         # Remark: The use of any additional pretrained language models is not permitted.
-        # self.bert = BertModel.from_pretrained("google-bert/bert-base-uncased", cache_dir="./cache/")
-        # self.roberta = RobertaModel.from_pretrained("FacebookAI/roberta-base", cache_dir="./cache/")
-        self.gpt2 = GPT2Model.from_pretrained(
-            "openai-community/gpt2", cache_dir="./cache/"
+        self.bert = BertModel.from_pretrained(
+            "google-bert/bert-base-uncased", cache_dir="./cache/"
         )
-        # hidden_size = self.bert.config.hidden_size
+        # self.roberta = RobertaModel.from_pretrained("FacebookAI/roberta-base", cache_dir="./cache/")
+        hidden_size = self.bert.config.hidden_size
         # hidden_size = self.roberta.config.hidden_size
-        hidden_size = self.gpt2.config.hidden_size
 
-        self.shared_dense = torch.nn.Linear(hidden_size, hidden_size)
-        self.activation = torch.nn.ReLU()
-        self.dropout = torch.nn.Dropout(config.dropout_rate)
+        self.shared_dense = torch.nn.Sequential(
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(config.dropout_rate),
+        )
 
         self.regression_head = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, 256),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 1),  # [0, 5]
-            torch.nn.Sigmoid(),
+            torch.nn.Linear(256, 1),  # [1, 5]
+            torch.nn.Tanh(),
         )
 
         self.classification_head = torch.nn.Sequential(
@@ -241,22 +236,22 @@ class MultiLabelModel(torch.nn.Module):
 
         input_ids = kwargs["input_ids"]
         attention_mask = kwargs["attention_mask"]
-        # token_type_ids = kwargs["token_type_ids"]
+        token_type_ids = kwargs["token_type_ids"]
 
-        # bert_output = self.bert(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids,)
-        # roberta_output = self.roberta(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
-        gpt2_output = self.gpt2(input_ids=input_ids, attention_mask=attention_mask)
-
-        # cls_representation = bert_output.last_hidden_state[:, 0, :]
-        # cls_representation = roberta_output.last_hidden_state[:, 0, :]
-        cls_representation = gpt2_output.last_hidden_state[:, 0, :]
-
-        shared_features = self.dropout(
-            self.activation(self.shared_dense(cls_representation))
+        bert_output = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
         )
+        # roberta_output = self.roberta(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
+
+        cls_representation = bert_output.last_hidden_state[:, 0, :]
+        # cls_representation = roberta_output.last_hidden_state[:, 0, :]
+
+        shared_features = self.shared_dense(cls_representation)
         regression_output = (
-            self.regression_head(shared_features) * 5
-        )  # [0, 1] -> [0, 5]
+            self.regression_head(shared_features) * 2 + 3
+        )  # [-1, 1] -> [-2, 2] -> [1, 5]
         classification_output = self.classification_head(shared_features)
 
         return {
@@ -274,9 +269,8 @@ model = MultiLabelModel().to(device)
 muon_params = [
     p
     for layer in [
-        # model.bert,
+        model.bert,
         # model.roberta,
-        model.gpt2,
         model.shared_dense,
         model.regression_head,
         model.classification_head,
@@ -288,9 +282,8 @@ muon_params = [
 adamw_params = [
     p
     for layer in [
-        # model.bert,
+        model.bert,
         # model.roberta,
-        model.gpt2,
         model.shared_dense,
         model.regression_head,
         model.classification_head,
@@ -300,8 +293,15 @@ adamw_params = [
 ]
 
 optimizer = [
-    SingleDeviceMuon(muon_params, lr=config.muon_lr),
-    torch.optim.AdamW(adamw_params, lr=config.adamw_lr),
+    SingleDeviceMuon(
+        muon_params,
+        lr=config.muon_lr,
+        weight_decay=config.muon_weight_decay,
+        momentum=config.muon_momentum,
+    ),
+    torch.optim.AdamW(
+        adamw_params, lr=config.adamw_lr, weight_decay=config.adamw_weight_decay
+    ),
 ]
 
 # TODO3-2: Define your loss functions (you should have two)
@@ -309,6 +309,44 @@ optimizer = [
 
 criterion_regression = torch.nn.MSELoss()
 criterion_classification = torch.nn.CrossEntropyLoss()
+
+
+def consistency_loss(reg_scores, clf_logits):
+    # reg_scores shape: [B, 1], clf_logits shape: [B, 3]
+    device = reg_scores.device
+
+    # --- reg_scores -> expected_reg_from_clf ---
+    E_neutral = (1.5 * 451 + 2.5 * 615 + 3.5 * 1398 + 4.5 * 326) / 2790
+    E_entail = (1.5 * 1 + 2.5 * 0 + 3.5 * 65 + 4.5 * 1338) / 1404
+    E_contra = (1.5 * 0 + 2.5 * 59 + 3.5 * 496 + 4.5 * 157) / 712
+    E_vec = torch.tensor([E_neutral, E_entail, E_contra], device=device)
+
+    clf_probs = torch.softmax(clf_logits, dim=1)
+    expected_reg_from_clf = (clf_probs * E_vec).sum(dim=1)  # Shape: [B]
+    reg_consis_loss = torch.nn.functional.mse_loss(reg_scores, expected_reg_from_clf)
+
+    # --- clf_logits -> expected_clf_from_reg ---
+    p_1_2 = torch.tensor([451 / 452.0, 1 / 452.0, 0 / 452.0], device=device)
+    p_2_3 = torch.tensor([615 / 674.0, 0 / 674.0, 59 / 674.0], device=device)
+    p_3_4 = torch.tensor([1398 / 1959.0, 65 / 1959.0, 496 / 1959.0], device=device)
+    p_4_5 = torch.tensor([326 / 1821.0, 1338 / 1821.0, 157 / 1821.0], device=device)
+
+    mask_1_2 = ((reg_scores >= 1.0) & (reg_scores < 2.0)).unsqueeze(-1)
+    mask_2_3 = ((reg_scores >= 2.0) & (reg_scores < 3.0)).unsqueeze(-1)
+    mask_3_4 = ((reg_scores >= 3.0) & (reg_scores < 4.0)).unsqueeze(-1)
+    mask_4_5 = (reg_scores >= 4.0).unsqueeze(-1)
+
+    expected_clf_from_reg = (
+        mask_1_2 * p_1_2 + mask_2_3 * p_2_3 + mask_3_4 * p_3_4 + mask_4_5 * p_4_5
+    )  # Shape: [B, 3]
+
+    clf_log_probs = torch.nn.functional.log_softmax(clf_logits, dim=1)
+    clf_consis_loss = torch.nn.functional.kl_div(
+        clf_log_probs, expected_clf_from_reg, reduction="batchmean"
+    )
+
+    return reg_consis_loss + clf_consis_loss
+
 
 # scoring functions
 psr = load("pearsonr")
@@ -345,7 +383,11 @@ for ep in range(epochs):
         loss_clf = criterion_classification(
             outputs["entailment_judgment"], batch["entailment_judgment"]
         )
-        loss = config.alpha * loss_reg + (1 - config.alpha) * loss_clf
+        consis_loss = consistency_loss(
+            outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
+        )
+        # loss = config.alpha * loss_reg + (1 - config.alpha) * loss_clf
+        loss = (1 - config.alpha) * (loss_reg + loss_clf) + config.alpha * consis_loss
 
         loss.backward()
 
@@ -366,9 +408,9 @@ for ep in range(epochs):
         sample_count += batch_size
         wandb.log(
             {
-                "val_pearson": pearson_corr,
-                "val_accuracy": accuracy,
-                "val_combined_score": combined_score,
+                "train_loss": loss.item(),
+                "raw_grad_norm": raw_grad_norm,
+                "batch_perplexity": torch.exp(loss).item(),
             },
             step=sample_count,
         )
@@ -418,7 +460,7 @@ for ep in range(epochs):
         )
         accuracy = accuracy_result["accuracy"]
 
-        combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
+        combined_score = 0.5 * pearson_corr + 0.5 * accuracy
         print(f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
         wandb.log(
             {
@@ -478,8 +520,10 @@ with torch.no_grad():
     accuracy_result = acc.compute(predictions=all_clf_preds, references=all_clf_targets)
     accuracy = accuracy_result["accuracy"]
 
-    combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
-    print(f"Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+    combined_score = 0.5 * pearson_corr + 0.5 * accuracy
+    print(
+        f"\nPearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combine={combined_score:.4f}"
+    )
 
 
 wandb.log(
@@ -491,3 +535,6 @@ wandb.log(
 )
 
 wandb.finish()
+
+if os.path.exists(f"{save_dir}/best_model.ckpt"):
+    os.remove(f"{save_dir}/best_model.ckpt")
