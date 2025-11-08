@@ -98,14 +98,13 @@ class SemevalDataset(Dataset):
 default_config = {
     "muon_lr": 0.000570533273915737,
     "adamw_lr": 0.00014440709898314,
-    "alpha": 0.2,
+    "alpha": 0.5,
     "dropout_rate": 0.05,
     "batch_size": 32,
     "muon_weight_decay": 0.0336472354297785,
     "adamw_weight_decay": 0.0358781442720464,
     "muon_momentum": 0.95,
 }
-print(f"alpha={default_config["alpha"]}")
 
 wandb.init(
     project="nlp-hw3-multi-output",
@@ -211,7 +210,7 @@ class MultiLabelModel(torch.nn.Module):
         # hidden_size = self.roberta.config.hidden_size
 
         self.shared_dense = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.Linear(hidden_size * 2, hidden_size),
             torch.nn.ReLU(),
             torch.nn.Dropout(config.dropout_rate),
         )
@@ -246,8 +245,11 @@ class MultiLabelModel(torch.nn.Module):
         )
         # roberta_output = self.roberta(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
 
-        cls_representation = bert_output.last_hidden_state[:, 0, :]
-        # cls_representation = roberta_output.last_hidden_state[:, 0, :]
+        # cls_representation = bert_output.last_hidden_state[:, 0, :]
+
+        mean_pooling = bert_output.last_hidden_state.mean(dim=1)
+        cls_token = bert_output.last_hidden_state[:, 0, :]
+        cls_representation = torch.cat([cls_token, mean_pooling], dim=-1)
 
         shared_features = self.shared_dense(cls_representation)
         regression_output = (
