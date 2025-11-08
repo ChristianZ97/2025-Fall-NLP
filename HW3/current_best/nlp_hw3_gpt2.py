@@ -216,7 +216,7 @@ class MultiLabelModel(torch.nn.Module):
         attention_mask = kwargs["attention_mask"]
         # token_type_ids = kwargs["token_type_ids"]
 
-        bert_output = self.bert(
+        gpt2_output = self.gpt2(
             input_ids=input_ids,
             attention_mask=attention_mask,
             # token_type_ids=token_type_ids,
@@ -246,7 +246,7 @@ model = MultiLabelModel().to(device)
 muon_params = [
     p
     for layer in [
-        model.bert,
+        model.gpt2,
         model.shared_dense,
         model.regression_head,
         model.classification_head,
@@ -258,7 +258,7 @@ muon_params = [
 adamw_params = [
     p
     for layer in [
-        model.bert,
+        model.gpt2,
         model.shared_dense,
         model.regression_head,
         model.classification_head,
