@@ -250,8 +250,8 @@ class MultiLabelModel(torch.nn.Module):
 
         shared_features = self.shared_dense(cls_representation)
         regression_output = (
-            self.regression_head(shared_features) * 5 * 0.8 + 1
-        )  # [0, 1] -> [0, 5] -> [0, 4] -> [1, 5]
+            self.regression_head(shared_features) * 5
+        )  # [0, 1] -> [0, 5]
         classification_output = self.classification_head(shared_features)
 
         return {
@@ -310,6 +310,26 @@ optimizer = [
 criterion_regression = torch.nn.MSELoss()
 criterion_classification = torch.nn.CrossEntropyLoss()
 
+
+def consistency_loss(reg_scores, clf_logits):
+
+    E_neutral = (1.5 * 451 + 2.5 * 615 + 3.5 * 1398 + 4.5 * 326) / 2790
+    E_entail = (1.5 * 1 + 2.5 * 0 + 3.5 * 65 + 4.5 * 1338) / 1404
+    E_contra = (1.5 * 0 + 2.5 * 59 + 3.5 * 496 + 4.5 * 157) / 712
+
+    clf_probs = torch.softmax(clf_logits, dim=1)
+
+    expected_reg_from_clf = (
+        clf_probs[:, 0] * E_neutral
+        + clf_probs[:, 1] * E_entail
+        + clf_probs[:, 2] * E_contra
+    )
+
+    consis_loss = torch.nn.MSELoss(reg_scores, expected_reg_from_clf)
+
+    return consis_loss
+
+
 # scoring functions
 psr = load("pearsonr")
 acc = load("accuracy")
@@ -345,7 +365,11 @@ for ep in range(epochs):
         loss_clf = criterion_classification(
             outputs["entailment_judgment"], batch["entailment_judgment"]
         )
-        loss = config.alpha * loss_reg + (1 - config.alpha) * loss_clf
+
+        consis_loss = consistency_loss(loss_reg, loss_clf)
+        loss = (
+            config.alpha * loss_reg + (1 - config.alpha) * loss_clf + 0.05 * consis_loss
+        )
 
         loss.backward()
 
