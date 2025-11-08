@@ -275,7 +275,7 @@ optimizer = [
 # Write your code here
 
 criterion_regression = torch.nn.MSELoss()
-criterion_classification = torch.nn.CrossEntropyLoss()
+# criterion_classification = torch.nn.CrossEntropyLoss()
 
 # scoring functions
 psr = load("pearsonr")
