@@ -96,13 +96,13 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "muon_lr": 0.000570533273915737,
-    "adamw_lr": 0.00014440709898314,
-    "alpha": 0.5,
+    "muon_lr": 0.000570946127776095,
+    "adamw_lr": 0.000144505377143309,
+    "alpha": 0.05,
     "dropout_rate": 0.05,
     "batch_size": 32,
-    "muon_weight_decay": 0.0336472354297785,
-    "adamw_weight_decay": 0.0358781442720464,
+    "muon_weight_decay": 0.0330037215159045,
+    "adamw_weight_decay": 0.0352225102350684,
     "muon_momentum": 0.95,
 }
 
@@ -219,8 +219,8 @@ class MultiLabelModel(torch.nn.Module):
             torch.nn.Linear(hidden_size, 256),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 1),  # [0, 5]
-            torch.nn.Sigmoid(),
+            torch.nn.Linear(256, 1),
+            torch.nn.Tanh(),  # [-1, 1]
         )
 
         self.classification_head = torch.nn.Sequential(
@@ -249,9 +249,7 @@ class MultiLabelModel(torch.nn.Module):
         # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
         shared_features = self.shared_dense(cls_representation)
-        regression_output = (
-            self.regression_head(shared_features) * 5
-        )  # [0, 1] -> [0, 5]
+        regression_output = torch.clamp(self.regression_head(shared_features), 1, 5)
         classification_output = self.classification_head(shared_features)
 
         return {
@@ -313,15 +311,52 @@ criterion_classification = torch.nn.CrossEntropyLoss()
 
 def consistency_loss(reg_scores, clf_logits):
 
-    clf_probs = torch.softmax(clf_logits, dim=1)  # [batch, 3]
-    expected_reg_from_clf = (
-        clf_probs[:, 0] * (0.00 * 1.5 + 0.00 * 2.5 + 0.01 * 3.5 + 0.27 * 4.5)
-        + clf_probs[:, 1] * (0.09 * 1.5 + 0.13 * 2.5 + 0.28 * 3.5 + 0.07 * 4.5)
-        + clf_probs[:, 2] * (0.00 * 1.5 + 0.01 * 2.5 + 0.10 * 3.5 + 0.03 * 4.5)
-    )
-    loss_clf_to_reg = torch.nn.functional.mse_loss(reg_scores, expected_reg_from_clf)
+    device = reg_scores.device
+    batch_size = reg_scores.shape[0]
 
-    return loss_clf_to_reg
+    E_neutral = (1.5 * 451 + 2.5 * 615 + 3.5 * 1398 + 4.5 * 326) / 2790
+    E_entail = (1.5 * 1 + 2.5 * 0 + 3.5 * 65 + 4.5 * 1338) / 1404
+    E_contra = (1.5 * 0 + 2.5 * 59 + 3.5 * 496 + 4.5 * 157) / 712
+
+    clf_probs = torch.softmax(clf_logits, dim=1)
+    expected_reg_from_clf = (
+        clf_probs[:, 0] * E_neutral  # NEUTRAL
+        + clf_probs[:, 1] * E_entail  # ENTAILMENT
+        + clf_probs[:, 2] * E_contra  # CONTRADICTION
+    )
+
+    reg_consis_loss = torch.nn.functional.mse_loss(reg_scores, expected_reg_from_clf)
+
+    expected_clf_from_reg = torch.zeros(batch_size, 3, device=device)
+
+    # P(class | score_range)
+
+    mask_1_2 = (reg_scores >= 1.0) & (reg_scores < 2.0)
+    expected_clf_from_reg[mask_1_2] = torch.tensor(
+        [451 / 452.0, 1 / 452.0, 0 / 452.0], device=device  # [NEUTRAL, ENTAIL, CONTRA]
+    )
+
+    mask_2_3 = (reg_scores >= 2.0) & (reg_scores < 3.0)
+    expected_clf_from_reg[mask_2_3] = torch.tensor(
+        [615 / 674.0, 0 / 674.0, 59 / 674.0], device=device
+    )
+
+    mask_3_4 = (reg_scores >= 3.0) & (reg_scores < 4.0)
+    expected_clf_from_reg[mask_3_4] = torch.tensor(
+        [1398 / 1959.0, 65 / 1959.0, 496 / 1959.0], device=device
+    )
+
+    mask_4_5 = reg_scores >= 4.0
+    expected_clf_from_reg[mask_4_5] = torch.tensor(
+        [326 / 1821.0, 1338 / 1821.0, 157 / 1821.0], device=device
+    )
+
+    clf_log_probs = torch.nn.functional.log_softmax(clf_logits, dim=1)
+    clf_consis_loss = torch.nn.functional.kl_div(
+        clf_log_probs, expected_clf_from_reg, reduction="batchmean"
+    )
+
+    return reg_consis_loss + clf_consis_loss
 
 
 # scoring functions
@@ -360,12 +395,10 @@ for ep in range(epochs):
             outputs["entailment_judgment"], batch["entailment_judgment"]
         )
 
-        loss_clf_to_reg = consistency_loss(loss_reg, loss_clf)
-        loss = (
-            config.alpha * loss_reg
-            + (1 - config.alpha) * loss_clf
-            + 0.1 * loss_clf_to_reg
+        consis_loss = consistency_loss(
+            outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
         )
+        loss = (1 - config.alpha) * (loss_reg + loss_clf) + config.alpha * consis_loss
 
         loss.backward()
 
@@ -438,8 +471,11 @@ for ep in range(epochs):
         )
         accuracy = accuracy_result["accuracy"]
 
-        combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
-        print(f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+        combined_score = 0.5 * pearson_corr + 0.5 * accuracy
+        print(
+            f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combine={combined_score:.4f}"
+        )
+
         wandb.log(
             {
                 "val_pearson": pearson_corr,
@@ -498,8 +534,10 @@ with torch.no_grad():
     accuracy_result = acc.compute(predictions=all_clf_preds, references=all_clf_targets)
     accuracy = accuracy_result["accuracy"]
 
-    combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
-    print(f"Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+    combined_score = 0.5 * pearson_corr + 0.5 * accuracy
+    print(
+        f"\nTest: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combine={combined_score:.4f}\n"
+    )
 
 
 wandb.log(
