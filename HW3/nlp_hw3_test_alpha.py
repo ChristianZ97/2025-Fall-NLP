@@ -98,13 +98,14 @@ class SemevalDataset(Dataset):
 default_config = {
     "muon_lr": 0.000570533273915737,
     "adamw_lr": 0.00014440709898314,
-    "alpha": 0.3,
+    "alpha": 0.2,
     "dropout_rate": 0.05,
     "batch_size": 32,
     "muon_weight_decay": 0.0336472354297785,
     "adamw_weight_decay": 0.0358781442720464,
     "muon_momentum": 0.95,
 }
+print(f"alpha={default_config.alpha}")
 
 wandb.init(
     project="nlp-hw3-multi-output",
