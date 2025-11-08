@@ -308,8 +308,8 @@ optimizer = [
 # TODO3-2: Define your loss functions (you should have two)
 # Write your code here
 
-# criterion_regression = torch.nn.MSELoss()
-criterion_regression = torch.nn.HuberLoss()
+criterion_regression = torch.nn.MSELoss()
+# criterion_regression = torch.nn.HuberLoss()
 criterion_classification = torch.nn.CrossEntropyLoss()
 
 
