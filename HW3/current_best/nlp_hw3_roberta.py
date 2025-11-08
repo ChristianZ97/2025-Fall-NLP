@@ -40,7 +40,7 @@ def set_seed(seed=42):
         torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    print(f"\n\nUsing random seed {seed}")
+    # print(f"\n\nUsing random seed {seed}")
 
 
 set_seed()
@@ -84,8 +84,8 @@ class SemevalDataset(Dataset):
         return len(self.data)
 
 
-data_sample = SemevalDataset(split="train").data[:3]
-print(f"Dataset example: \n{data_sample[0]} \n{data_sample[1]} \n{data_sample[2]}")
+# data_sample = SemevalDataset(split="train").data[:3]
+# print(f"Dataset example: \n{data_sample[0]} \n{data_sample[1]} \n{data_sample[2]}")
 
 # Define the hyperparameters
 # You can modify these values if needed
