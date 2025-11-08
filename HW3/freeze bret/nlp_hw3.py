@@ -103,7 +103,7 @@ default_config = {
     "batch_size": 32,
     "muon_weight_decay": 0.0330037215159045,
     "adamw_weight_decay": 0.0352225102350684,
-    "muon_momentum": 0.95,
+    "freeze_layers": 0,
 }
 
 wandb.init(
@@ -293,8 +293,9 @@ adamw_params = [
     if p.ndim < 2
 ]
 
-for param in model.bert.parameters():
-    param.requires_grad = False
+for i in range(config.freeze_layers):
+    for param in model.bert.encoder.layer[i].parameters():
+        param.requires_grad = False
 
 optimizer = [
     SingleDeviceMuon(
