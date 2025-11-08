@@ -117,7 +117,7 @@ os.makedirs(save_dir, exist_ok=True)
 # Define the hyperparameters
 # You can modify these values if needed
 # lr = 3e-5
-epochs = 3
+epochs = 5
 train_batch_size = config.batch_size
 validation_batch_size = 256
 
@@ -205,9 +205,7 @@ class MultiLabelModel(torch.nn.Module):
         self.bert = BertModel.from_pretrained(
             "google-bert/bert-base-uncased", cache_dir="./cache/"
         )
-        # self.roberta = RobertaModel.from_pretrained("FacebookAI/roberta-base", cache_dir="./cache/")
         hidden_size = self.bert.config.hidden_size
-        # hidden_size = self.roberta.config.hidden_size
 
         self.shared_dense = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, hidden_size * 2),
