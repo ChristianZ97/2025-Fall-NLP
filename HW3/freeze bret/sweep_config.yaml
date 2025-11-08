@@ -6,11 +6,11 @@ metric:
 parameters:
   adamw_lr: # 0.000144505377143309
     distribution: log_uniform_values
-    min: 0.00005
+    min: 0.0000035
     max: 0.00025
   muon_lr: # 0.000570946127776095
     distribution: log_uniform_values
-    min: 0.00045
+    min: 0.000315
     max: 0.00065
   adamw_weight_decay: # 0.0352225102350684
     distribution: uniform
