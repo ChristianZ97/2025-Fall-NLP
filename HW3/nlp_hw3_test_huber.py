@@ -307,19 +307,10 @@ optimizer = [
 # TODO3-2: Define your loss functions (you should have two)
 # Write your code here
 
-criterion_regression = torch.nn.MSELoss()
-# 1 / (1 - error_rate)
-class_weights = torch.tensor(
-    [
-        1.0 / (1 - (200 / 925)),  # entailment: 21.6%
-        1.0 / (1 - (266 / 326)),  # neutral: 81.6%
-        1.0 / (1 - (119 / 292)),  # contradiction: 40.8%
-    ],
-    dtype=torch.float,
-)
-class_weights = class_weights / class_weights.sum() * 3
-print(f"Class weights: {class_weights}")
-criterion_classification = torch.nn.CrossEntropyLoss(weight=class_weights.to(device))
+# criterion_regression = torch.nn.MSELoss()
+criterion_regression = torch.nn.HuberLoss()
+criterion_classification = torch.nn.CrossEntropyLoss()
+
 
 # scoring functions
 psr = load("pearsonr")
@@ -429,8 +420,11 @@ for ep in range(epochs):
         )
         accuracy = accuracy_result["accuracy"]
 
-        combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
-        print(f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+        combined_score = 0.5 * pearson_corr + 0.5 * accuracy
+        print(
+            f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combined={combined_score:.4f}"
+        )
+
         wandb.log(
             {
                 "val_pearson": pearson_corr,
@@ -489,8 +483,10 @@ with torch.no_grad():
     accuracy_result = acc.compute(predictions=all_clf_preds, references=all_clf_targets)
     accuracy = accuracy_result["accuracy"]
 
-    combined_score = config.alpha * pearson_corr + (1 - config.alpha) * accuracy
-    print(f"Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+    combined_score = 0.5 * pearson_corr + 0.5 * accuracy
+    print(
+        f"\nPearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combined={combined_score:.4f}"
+    )
 
 
 wandb.log(
