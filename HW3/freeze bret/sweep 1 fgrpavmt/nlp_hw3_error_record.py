@@ -519,6 +519,9 @@ with torch.no_grad():
         all_clf_preds.extend(clf_pred)
         all_clf_targets.extend(clf_target)
 
+        batch_size = batch["input_ids"].shape[0]
+        pair_ids = batch["sentence_pair_id"]
+
         for i in range(batch_size):
             reg_error = abs(reg_pred[i] - reg_target[i])
             clf_correct = clf_pred[i] == clf_target[i]
