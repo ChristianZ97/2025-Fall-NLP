@@ -564,5 +564,7 @@ wandb.log(
 
 wandb.finish()
 
-if os.path.exists(f"{save_dir}/best_model.ckpt"):
-    os.remove(f"{save_dir}/best_model.ckpt")
+import json
+
+with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
+    json.dump(all_errors, f, indent=2, ensure_ascii=False)
