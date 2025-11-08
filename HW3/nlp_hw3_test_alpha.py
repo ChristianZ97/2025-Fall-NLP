@@ -105,7 +105,7 @@ default_config = {
     "adamw_weight_decay": 0.0358781442720464,
     "muon_momentum": 0.95,
 }
-print(f"alpha={default_config.alpha}")
+print(f"alpha={default_config["alpha"]}")
 
 wandb.init(
     project="nlp-hw3-multi-output",
