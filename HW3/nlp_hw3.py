@@ -395,6 +395,9 @@ for ep in range(epochs):
         loss_clf = criterion_classification(
             outputs["entailment_judgment"], batch["entailment_judgment"]
         )
+        consis_loss = consistency_loss(
+            outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
+        )
         # loss = config.alpha * loss_reg + (1 - config.alpha) * loss_clf
         loss = (1 - config.alpha) * (loss_reg + loss_clf) + config.alpha * consis_loss
 
