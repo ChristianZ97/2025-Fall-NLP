@@ -249,7 +249,9 @@ class MultiLabelModel(torch.nn.Module):
         # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
         shared_features = self.shared_dense(cls_representation)
-        regression_output = self.regression_head(shared_features) * 2 + 3
+        regression_output = (
+            self.regression_head(shared_features) * 2 + 3
+        )  # [-1, 1] -> [-2, 2] -> [1, 5]
         classification_output = self.classification_head(shared_features)
 
         return {
