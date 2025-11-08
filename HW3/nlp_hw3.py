@@ -219,8 +219,9 @@ class MultiLabelModel(torch.nn.Module):
             torch.nn.Linear(hidden_size, 256),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 1),
-            torch.nn.Tanh(),  # [-1, 1]
+            torch.nn.Linear(256, 1),  # [0, 5]
+            # torch.nn.Sigmoid(),
+            torch.nn.Tanh(),
         )
 
         self.classification_head = torch.nn.Sequential(
@@ -394,10 +395,7 @@ for ep in range(epochs):
         loss_clf = criterion_classification(
             outputs["entailment_judgment"], batch["entailment_judgment"]
         )
-
-        consis_loss = consistency_loss(
-            outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
-        )
+        # loss = config.alpha * loss_reg + (1 - config.alpha) * loss_clf
         loss = (1 - config.alpha) * (loss_reg + loss_clf) + config.alpha * consis_loss
 
         loss.backward()
@@ -472,10 +470,7 @@ for ep in range(epochs):
         accuracy = accuracy_result["accuracy"]
 
         combined_score = 0.5 * pearson_corr + 0.5 * accuracy
-        print(
-            f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combine={combined_score:.4f}"
-        )
-
+        print(f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
         wandb.log(
             {
                 "val_pearson": pearson_corr,
@@ -535,9 +530,7 @@ with torch.no_grad():
     accuracy = accuracy_result["accuracy"]
 
     combined_score = 0.5 * pearson_corr + 0.5 * accuracy
-    print(
-        f"\nTest: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combine={combined_score:.4f}\n"
-    )
+    print(f"Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
 
 
 wandb.log(
@@ -552,3 +545,8 @@ wandb.finish()
 
 if os.path.exists(f"{save_dir}/best_model.ckpt"):
     os.remove(f"{save_dir}/best_model.ckpt")
+
+import json
+
+with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
+    json.dump(all_errors, f, indent=2, ensure_ascii=False)
