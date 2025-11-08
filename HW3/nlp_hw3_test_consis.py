@@ -219,8 +219,8 @@ class MultiLabelModel(torch.nn.Module):
             torch.nn.Linear(hidden_size, 256),
             torch.nn.ReLU(),
             torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 1),
-            torch.nn.Sigmoid(),  # [0, 1]
+            torch.nn.Linear(256, 1),  # [0, 5]
+            torch.nn.Sigmoid(),
         )
 
         self.classification_head = torch.nn.Sequential(
@@ -250,8 +250,8 @@ class MultiLabelModel(torch.nn.Module):
 
         shared_features = self.shared_dense(cls_representation)
         regression_output = (
-            self.regression_head(shared_features) * 4 + 1
-        )  # [0, 1] -> [0, 4] -> [1, 5]
+            self.regression_head(shared_features) * 5
+        )  # [0, 1] -> [0, 5]
         classification_output = self.classification_head(shared_features)
 
         return {
@@ -310,6 +310,20 @@ optimizer = [
 criterion_regression = torch.nn.MSELoss()
 criterion_classification = torch.nn.CrossEntropyLoss()
 
+
+def consistency_loss(reg_scores, clf_logits):
+
+    clf_probs = torch.softmax(clf_logits, dim=1)  # [batch, 3]
+    expected_reg_from_clf = (
+        clf_probs[:, 0] * (0.00 * 1.5 + 0.00 * 2.5 + 0.01 * 3.5 + 0.27 * 4.5)
+        + clf_probs[:, 1] * (0.09 * 1.5 + 0.13 * 2.5 + 0.28 * 3.5 + 0.07 * 4.5)
+        + clf_probs[:, 2] * (0.00 * 1.5 + 0.01 * 2.5 + 0.10 * 3.5 + 0.03 * 4.5)
+    )
+    loss_clf_to_reg = torch.nn.functional.mse_loss(reg_scores, expected_reg_from_clf)
+
+    return loss_clf_to_reg
+
+
 # scoring functions
 psr = load("pearsonr")
 acc = load("accuracy")
@@ -345,7 +359,13 @@ for ep in range(epochs):
         loss_clf = criterion_classification(
             outputs["entailment_judgment"], batch["entailment_judgment"]
         )
-        loss = config.alpha * loss_reg + (1 - config.alpha) * loss_clf
+
+        loss_clf_to_reg = consistency_loss(loss_reg, loss_clf)
+        loss = (
+            config.alpha * loss_reg
+            + (1 - config.alpha) * loss_clf
+            + 0.1 * loss_clf_to_reg
+        )
 
         loss.backward()
 
