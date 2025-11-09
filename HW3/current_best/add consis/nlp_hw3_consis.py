@@ -132,6 +132,8 @@ def collate_fn(batch):
 
     return {
         "sentence_pair_id": pair_ids,
+        "premise": premises,
+        "hypothesis": hypotheses,
         "input_ids": encoded["input_ids"],
         "attention_mask": encoded["attention_mask"],
         "token_type_ids": encoded["token_type_ids"],
@@ -424,7 +426,7 @@ with torch.no_grad():
     all_reg_targets = []
     all_clf_preds = []
     all_clf_targets = []
-
+    all_errors = []
     for batch in pbar:
         batch = {
             k: v.to(device, non_blocking=True) if isinstance(v, torch.Tensor) else v
@@ -444,6 +446,26 @@ with torch.no_grad():
 
         batch_size = batch["input_ids"].shape[0]
         pair_ids = batch["sentence_pair_id"]
+
+        for i in range(batch_size):
+            reg_error = abs(reg_pred[i] - reg_target[i])
+            clf_correct = clf_pred[i] == clf_target[i]
+            if reg_error > 0.5 or not clf_correct:  # 誤差 > 0.5 或分類錯誤
+                all_errors.append(
+                    {
+                        "pair_id": pair_ids[i],
+                        "premise": (batch["premise"][i] if "premise" in batch else ""),
+                        "hypothesis": (
+                            batch["hypothesis"][i] if "hypothesis" in batch else ""
+                        ),
+                        "reg_pred": float(reg_pred[i]),
+                        "reg_target": float(reg_target[i]),
+                        "reg_error": float(reg_error),
+                        "clf_pred": int(clf_pred[i]),
+                        "clf_target": int(clf_target[i]),
+                        "clf_correct": bool(clf_correct),
+                    }
+                )
 
     pearson_result = psr.compute(predictions=all_reg_preds, references=all_reg_targets)
     pearson_corr = pearson_result["pearsonr"]
