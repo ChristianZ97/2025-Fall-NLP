@@ -1,0 +1,6 @@
+  0%|          | 0/141 [00:00<?, ?it/s]Training epoch [1/3]:   0%|          | 0/141 [00:00<?, ?it/s]Training epoch [1/3]:   0%|          | 0/141 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/christian/2025-Fall-NLP/HW3/current_best/add consis/nlp_hw3_consis.py", line 338, in <module>
+    config.alpha * loss_reg + (1 - config.alpha) * loss_clf + 0.1 * consis_loss
+    ^^^^^^
+NameError: name 'config' is not defined
