@@ -338,7 +338,7 @@ for ep in range(epochs):
             consis_loss = consistency_loss(
                 outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
             )
-            loss = 0.8 * (loss_reg + loss_clf) + 0.2 * consis_loss
+            loss = consis_loss
         else:
             loss = 0.5 * loss_reg + 0.5 * loss_clf
 
