@@ -98,7 +98,6 @@ class SemevalDataset(Dataset):
 default_config = {
     "muon_lr": 0.000570946127776095,
     "adamw_lr": 0.000144505377143309,
-    "alpha": 0.05,
     "dropout_rate": 0.05,
     "batch_size": 32,
     "muon_weight_decay": 0.0330037215159045,
@@ -348,11 +347,7 @@ for ep in range(epochs):
         loss_clf = criterion_classification(
             outputs["entailment_judgment"], batch["entailment_judgment"]
         )
-        consis_loss = consistency_loss(
-            outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
-        )
-        # loss = config.alpha * loss_reg + (1 - config.alpha) * loss_clf
-        loss = (1 - config.alpha) * (loss_reg + loss_clf) + config.alpha * consis_loss
+        loss = 0.5 * loss_reg + 0.5 * loss_clf
 
         loss.backward()
 
