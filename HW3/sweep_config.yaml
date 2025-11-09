@@ -23,4 +23,4 @@ parameters:
   alpha:
     distribution: uniform
     min: 0.0
-    max: 0.3
+    max: 0.5
