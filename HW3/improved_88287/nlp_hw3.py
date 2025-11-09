@@ -24,7 +24,6 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 #  You can install and import any other libraries if needed
 
 from muon import SingleDeviceMuon
-import wandb
 import time
 import numpy as np
 import random
@@ -94,30 +93,18 @@ class SemevalDataset(Dataset):
 # data_sample = SemevalDataset(split="train").data[:3]
 # print(f"Dataset example: \n{data_sample[0]} \n{data_sample[1]} \n{data_sample[2]}")
 
-# Hyperparameter configuration
-default_config = {
-    "muon_lr": 0.000593599600653124,
-    "adamw_lr": 0.000149236922082437,
-    "alpha": 0.126998060525388,
-    "dropout_rate": 0.05,
-    "batch_size": 32,
-    "muon_weight_decay": 0.0375882867078055,
-    "adamw_weight_decay": 0.0358972853872122,
-}
-
-wandb.init(
-    project="nlp-hw3-multi-output",
-    config=default_config,
-)
-config = wandb.config
-save_dir = f"./saved_models/{wandb.run.id}"
-os.makedirs(save_dir, exist_ok=True)
-
 # Define the hyperparameters
 # You can modify these values if needed
 # lr = 3e-5
+muon_lr = 0.000593599600653124
+muon_weight_decay = 0.0375882867078055
+adamw_lr = 0.000149236922082437
+adamw_weight_decay = 0.0358972853872122
+alpha = 0.126998060525388
+dropout_rate = 0.05
+
 epochs = 4
-train_batch_size = config.batch_size
+train_batch_size = 32
 validation_batch_size = 256
 
 # TODO1: Create batched data for DataLoader
@@ -211,7 +198,7 @@ class MultiLabelModel(torch.nn.Module):
         self.shared_dense = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, hidden_size),
             torch.nn.ReLU(),
-            torch.nn.Dropout(config.dropout_rate),
+            torch.nn.Dropout(dropout_rate),
         )
 
         self.regression_head = torch.nn.Sequential(
@@ -292,12 +279,8 @@ adamw_params = [
 ]
 
 optimizer = [
-    SingleDeviceMuon(
-        muon_params, lr=config.muon_lr, weight_decay=config.muon_weight_decay
-    ),
-    torch.optim.AdamW(
-        adamw_params, lr=config.adamw_lr, weight_decay=config.adamw_weight_decay
-    ),
+    SingleDeviceMuon(muon_params, lr=muon_lr, weight_decay=muon_weight_decay),
+    torch.optim.AdamW(adamw_params, lr=adamw_lr, weight_decay=adamw_weight_decay),
 ]
 
 # TODO3-2: Define your loss functions (you should have two)
@@ -384,9 +367,7 @@ for ep in range(epochs):
             consis_loss = consistency_loss(
                 outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
             )
-            loss = (1 - config.alpha) * (
-                loss_reg + loss_clf
-            ) + config.alpha * consis_loss
+            loss = (1 - alpha) * (loss_reg + loss_clf) + alpha * consis_loss
         else:
 
             loss = 0.5 * (loss_reg + loss_clf)
@@ -408,14 +389,6 @@ for ep in range(epochs):
         pbar.set_postfix(loss=loss.item())
         batch_size = batch["input_ids"].shape[0]
         sample_count += batch_size
-        wandb.log(
-            {
-                "train_loss": loss.item(),
-                "raw_grad_norm": raw_grad_norm,
-                "batch_perplexity": torch.exp(loss).item(),
-            },
-            step=sample_count,
-        )
 
     pbar = tqdm(dl_validation)
     pbar.set_description(f"Validation epoch [{ep+1}/{epochs}]")
@@ -463,14 +436,8 @@ for ep in range(epochs):
         accuracy = accuracy_result["accuracy"]
 
         combined_score = 0.5 * pearson_corr + 0.5 * accuracy
-        print(f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
-        wandb.log(
-            {
-                "val_pearson": pearson_corr,
-                "val_accuracy": accuracy,
-                "val_combined_score": combined_score,
-            },
-            step=sample_count,
+        print(
+            f"Epoch {ep+1}: Pearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}"
         )
 
         if combined_score > best_score:
@@ -522,21 +489,5 @@ with torch.no_grad():
     accuracy_result = acc.compute(predictions=all_clf_preds, references=all_clf_targets)
     accuracy = accuracy_result["accuracy"]
 
-    combined_score = 0.5 * pearson_corr + 0.5 * accuracy
-    print(
-        f"\nPearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combine={combined_score:.4f}"
-    )
-
-
-wandb.log(
-    {
-        "test_pearson": pearson_corr,
-        "test_accuracy": accuracy,
-        "test_combined_score": combined_score,
-    }
-)
-
-wandb.finish()
-
-if os.path.exists(f"{save_dir}/best_model.ckpt"):
-    os.remove(f"{save_dir}/best_model.ckpt")
+    combined_score = 0.5 * (pearson_corr + accuracy)
+    print(f"\nPearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}")
