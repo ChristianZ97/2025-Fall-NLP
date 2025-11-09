@@ -274,12 +274,8 @@ adamw_params = [
     if p.ndim < 2
 ]
 
-for i in range(FREEZE_LAYERS + 1):
+for i in range(FREEZE_LAYERS + 1):  # -1 ~ 11
     for param in model.bert.encoder.layer[i].parameters():
-        param.requires_grad = False
-
-if FREEZE_LAYERS >= 12:
-    for param in model.bert.parameters():
         param.requires_grad = False
 
 

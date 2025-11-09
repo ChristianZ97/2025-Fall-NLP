@@ -10,7 +10,7 @@ mkdir -p "${OUTPUT_DIR}"
 
 # Python 檔案列表
 SCRIPT="nlp_hw3_bert.py"
-PARAM_RANGE=$(seq -1 12)
+PARAM_RANGE=$(seq -1 11)
 
 # 初始化 CSV header
 echo "script,run,epoch1_pearson,epoch1_accuracy,epoch1_combine,epoch2_pearson,epoch2_accuracy,epoch2_combine,epoch3_pearson,epoch3_accuracy,epoch3_combine,test_pearson,test_accuracy,test_combine" > "${SUMMARY_CSV}"
