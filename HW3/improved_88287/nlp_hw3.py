@@ -139,6 +139,8 @@ def collate_fn(batch):
 
     return {
         "sentence_pair_id": pair_ids,
+        "premise": premises,
+        "hypothesis": hypotheses,
         "input_ids": encoded["input_ids"],
         "attention_mask": encoded["attention_mask"],
         "token_type_ids": encoded["token_type_ids"],
@@ -442,11 +444,11 @@ for ep in range(epochs):
 
         if combined_score > best_score:
             best_score = combined_score
-            torch.save(model.state_dict(), f"./best_model.ckpt")
+            torch.save(model.state_dict(), f"./saved_models/best_model.ckpt")
 
 # Load the model
 model = MultiLabelModel().to(device)
-model.load_state_dict(torch.load(f"./best_model.ckpt", weights_only=True))
+model.load_state_dict(torch.load(f"./saved_models/best_model.ckpt", weights_only=True))
 
 # Test Loop
 pbar = tqdm(dl_test, desc="Test")
@@ -465,6 +467,7 @@ with torch.no_grad():
     all_reg_targets = []
     all_clf_preds = []
     all_clf_targets = []
+    all_errors = []
 
     for batch in pbar:
         batch = {
@@ -483,6 +486,29 @@ with torch.no_grad():
         all_clf_preds.extend(clf_pred)
         all_clf_targets.extend(clf_target)
 
+        batch_size = batch["input_ids"].shape[0]
+        pair_ids = batch["sentence_pair_id"]
+
+        for i in range(batch_size):
+            reg_error = abs(reg_pred[i] - reg_target[i])
+            clf_correct = clf_pred[i] == clf_target[i]
+            if reg_error > 0.5 or not clf_correct:  # 誤差 > 0.5 或分類錯誤
+                all_errors.append(
+                    {
+                        "pair_id": pair_ids[i],
+                        "premise": (batch["premise"][i] if "premise" in batch else ""),
+                        "hypothesis": (
+                            batch["hypothesis"][i] if "hypothesis" in batch else ""
+                        ),
+                        "reg_pred": float(reg_pred[i]),
+                        "reg_target": float(reg_target[i]),
+                        "reg_error": float(reg_error),
+                        "clf_pred": int(clf_pred[i]),
+                        "clf_target": int(clf_target[i]),
+                        "clf_correct": bool(clf_correct),
+                    }
+                )
+
     pearson_result = psr.compute(predictions=all_reg_preds, references=all_reg_targets)
     pearson_corr = pearson_result["pearsonr"]
 
@@ -491,3 +517,9 @@ with torch.no_grad():
 
     combined_score = 0.5 * (pearson_corr + accuracy)
     print(f"\nPearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}")
+
+
+import json
+
+with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
+    json.dump(all_errors, f, indent=2, ensure_ascii=False)
