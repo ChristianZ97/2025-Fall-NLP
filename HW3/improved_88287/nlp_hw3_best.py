@@ -416,7 +416,7 @@ for ep in range(epochs):
         )
         accuracy = accuracy_result["accuracy"]
 
-        combined_score = 0.5 * (pearson_corr + accuracy)
+        combined_score = 0.5 * pearson_corr + 0.5 * accuracy
         print(
             f"Epoch {ep+1}: Pearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}"
         )
@@ -493,7 +493,7 @@ with torch.no_grad():
     accuracy_result = acc.compute(predictions=all_clf_preds, references=all_clf_targets)
     accuracy = accuracy_result["accuracy"]
 
-    combined_score = 0.5 * (pearson_corr + accuracy)
+    combined_score = 0.5 * pearson_corr + 0.5 * accuracy
     print(
         f"\nTest: Pearson={pearson_corr:}, Accuracy={accuracy:}, Combine={combined_score}"
     )
