@@ -40,6 +40,9 @@ clf_errors = df_errors[~df_errors["clf_correct"]]
 print(f"   Total classification errors: {len(clf_errors)}")
 print(f"   Error rate: {len(clf_errors) / len(df_errors) * 100:.1f}%")
 
+# 新的 label 對應（neutral=0, entailment=1, contradiction=2）
+label_names = {0: "neutral", 1: "entailment", 2: "contradiction"}
+
 # 分析混淆矩陣
 print("\n   Confusion matrix:")
 confusion = {}
@@ -47,7 +50,6 @@ for _, row in clf_errors.iterrows():
     key = (row["clf_target"], row["clf_pred"])
     confusion[key] = confusion.get(key, 0) + 1
 
-label_names = {0: "entailment", 1: "neutral", 2: "contradiction"}
 for true_label in range(3):
     for pred_label in range(3):
         count = confusion.get((true_label, pred_label), 0)
@@ -83,7 +85,6 @@ for true_label in range(3):
 print("\n4. TEXT FEATURE ANALYSIS")
 
 
-# 句子長度是否影響
 def get_length(text):
     return len(text.split()) if isinstance(text, str) else 0
 
@@ -104,22 +105,34 @@ print(
 # ===== 指標 5：最難的例子 =====
 print("\n5. HARDEST EXAMPLES (Top 10 by error magnitude)")
 top_errors = df_errors.nlargest(10, "reg_error")[
-    ["premise", "hypothesis", "reg_target", "reg_pred", "reg_error"]
+    [
+        "premise",
+        "hypothesis",
+        "reg_target",
+        "reg_pred",
+        "reg_error",
+        "clf_target",
+        "clf_pred",
+    ]
 ]
 for idx, (_, row) in enumerate(top_errors.iterrows(), 1):
     print(f"\n   #{idx}")
     print(f"   Premise: {row['premise'][:80]}")
     print(f"   Hypothesis: {row['hypothesis'][:80]}")
     print(
-        f"   Target: {row['reg_target']:.1f}, Pred: {row['reg_pred']:.1f}, Error: {row['reg_error']:.3f}"
+        f"   Reg Target: {row['reg_target']:.1f}, Pred: {row['reg_pred']:.1f}, Error: {row['reg_error']:.3f}"
+    )
+    print(
+        f"   Clf Target: {label_names.get(row['clf_target'],'?')} ({row['clf_target']}), "
+        f"Pred: {label_names.get(row['clf_pred'],'?')} ({row['clf_pred']})"
     )
 
 # 存成 CSV 便於後續檢查
 df_errors.to_csv("./errors_detailed.csv", index=False, encoding="utf-8")
 print("\n✓ Saved to errors_detailed.csv")
 
-
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
@@ -130,8 +143,6 @@ axes[0, 0].set_ylabel("Count")
 axes[0, 0].set_title("Distribution of Regression Errors")
 
 # 子圖 2：分類混淆矩陣熱力圖
-import seaborn as sns
-
 confusion_matrix = np.zeros((3, 3))
 for (true_label, pred_label), count in confusion.items():
     confusion_matrix[true_label, pred_label] = count
@@ -141,8 +152,8 @@ sns.heatmap(
     annot=True,
     fmt="g",
     ax=axes[0, 1],
-    xticklabels=["entailment", "neutral", "contra"],
-    yticklabels=["entailment", "neutral", "contra"],
+    xticklabels=["neutral", "entailment", "contra"],
+    yticklabels=["neutral", "entailment", "contra"],
 )
 axes[0, 1].set_title("Classification Confusion Matrix")
 axes[0, 1].set_ylabel("True Label")
