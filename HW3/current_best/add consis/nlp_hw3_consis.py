@@ -335,7 +335,7 @@ for ep in range(epochs):
             outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
         )
         loss = (
-            config.alpha * loss_reg + (1 - config.alpha) * loss_clf + 0.1 * consis_loss
+            0.9 * loss_reg + loss_clf + 0.1 * consis_loss
         )
 
         loss.backward()

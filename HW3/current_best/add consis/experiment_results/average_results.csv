@@ -1,4 +1,0 @@
-,run,run,epoch1_pearson,epoch1_pearson,epoch1_accuracy,epoch1_accuracy,epoch1_combine,epoch1_combine,epoch2_pearson,epoch2_pearson,epoch2_accuracy,epoch2_accuracy,epoch2_combine,epoch2_combine,epoch3_pearson,epoch3_pearson,epoch3_accuracy,epoch3_accuracy,epoch3_combine,epoch3_combine,test_pearson,test_pearson,test_accuracy,test_accuracy,test_combine,test_combine
-,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std
-script,,,,,,,,,,,,,,,,,,,,,,,,,,
-nlp_hw3_consis.py,5.5,3.0277,,,,,,,,,,,,,,,,,,,,,,,,
