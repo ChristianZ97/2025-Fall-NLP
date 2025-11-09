@@ -43,9 +43,9 @@ def set_seed(seed=42):
     # print(f"\n\nUsing random seed {seed}")
 
 
-from seed import SEED
+# from seed import SEED
 
-set_seed(SEED)
+set_seed()
 
 # Some Chinese punctuations will be tokenized as [UNK], so we replace them with English ones
 token_replacement = [
