@@ -96,7 +96,7 @@ adamw_lr = 0.000144505377143309
 adamw_weight_decay = 0.0352225102350684
 dropout_rate = 0.05
 
-epochs = 5
+epochs = 4
 train_batch_size = 32
 validation_batch_size = 256
 
