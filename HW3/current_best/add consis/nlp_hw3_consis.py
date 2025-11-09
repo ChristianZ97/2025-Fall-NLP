@@ -98,7 +98,7 @@ adamw_lr = 0.000144505377143309
 adamw_weight_decay = 0.0352225102350684
 dropout_rate = 0.05
 
-epochs = 3
+epochs = 5
 train_batch_size = 32
 validation_batch_size = 256
 
@@ -331,12 +331,15 @@ for ep in range(epochs):
         loss_clf = criterion_classification(
             outputs["entailment_judgment"], batch["entailment_judgment"]
         )
-        consis_loss = consistency_loss(
-            outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
-        )
-        loss = (
-            0.9 * loss_reg + loss_clf + 0.1 * consis_loss
-        )
+
+        if ep > 3:
+            consis_loss = consistency_loss(
+                outputs["relatedness_score"].squeeze(), outputs["entailment_judgment"]
+            )
+        else:
+            consis_loss = 0
+
+        loss = 0.5 * loss_reg + 0.5 * loss_clf + 0.3 * consis_loss
 
         loss.backward()
 
