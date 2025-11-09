@@ -442,11 +442,11 @@ for ep in range(epochs):
 
         if combined_score > best_score:
             best_score = combined_score
-            torch.save(model.state_dict(), f"{save_dir}/best_model.ckpt")
+            torch.save(model.state_dict(), f"./best_model.ckpt")
 
 # Load the model
 model = MultiLabelModel().to(device)
-model.load_state_dict(torch.load(f"{save_dir}/best_model.ckpt", weights_only=True))
+model.load_state_dict(torch.load(f"./best_model.ckpt", weights_only=True))
 
 # Test Loop
 pbar = tqdm(dl_test, desc="Test")
