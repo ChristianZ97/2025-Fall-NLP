@@ -43,7 +43,9 @@ def set_seed(seed=42):
     # print(f"\n\nUsing random seed {seed}")
 
 
-set_seed()
+from seed import SEED
+
+set_seed(SEED)
 
 # Some Chinese punctuations will be tokenized as [UNK], so we replace them with English ones
 token_replacement = [
@@ -476,3 +478,8 @@ with torch.no_grad():
     print(
         f"\nTest: Pearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}"
     )
+
+import json
+
+with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
+    json.dump(all_errors, f, indent=2, ensure_ascii=False)
