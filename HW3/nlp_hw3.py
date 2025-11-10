@@ -99,7 +99,6 @@ default_config = {
     "muon_lr": 0.000570946127776095,
     "adamw_lr": 0.000144505377143309,
     "alpha": 0.1,
-    "dropout_rate": 0.05,
     "batch_size": 32,
     "muon_weight_decay": 0.0330037215159045,
     "adamw_weight_decay": 0.0352225102350684,
@@ -116,7 +115,7 @@ os.makedirs(save_dir, exist_ok=True)
 # Define the hyperparameters
 # You can modify these values if needed
 # lr = 3e-5
-epochs = 4
+epochs = 5
 train_batch_size = config.batch_size
 validation_batch_size = 256
 
@@ -210,23 +209,29 @@ class MultiLabelModel(torch.nn.Module):
 
         self.shared_dense = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, hidden_size),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(config.dropout_rate),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
         )
 
         self.regression_head = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, 256),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 1),  # [1, 5]
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, 1),  # [1, 5]
             torch.nn.Tanh(),
         )
 
         self.classification_head = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, 256),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 3),  # 0, 1, 2
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, 3),  # 0, 1, 2
         )
 
     def forward(self, **kwargs):
