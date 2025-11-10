@@ -5,11 +5,11 @@ metric:
   goal: maximize
 parameters:
   adamw_lr:
-    distribution: uniform
+    distribution: log_uniform_values
     min: 0.00001
     max: 0.01
   muon_lr:
-    distribution: uniform
+    distribution: log_uniform_values
     min: 0.00005
     max: 0.05
   adamw_weight_decay:
