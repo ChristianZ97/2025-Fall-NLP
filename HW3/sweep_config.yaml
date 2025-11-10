@@ -6,12 +6,12 @@ metric:
 parameters:
   adamw_lr:
     distribution: uniform
-    min: 0.01
-    max: 0.00001
+    min: 0.00001
+    max: 0.01
   muon_lr:
     distribution: uniform
-    min: 0.05
-    max: 0.000005
+    min: 0.00005
+    max: 0.05
   adamw_weight_decay:
     distribution: uniform
     min: 0.0
