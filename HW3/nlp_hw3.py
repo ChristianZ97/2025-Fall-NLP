@@ -115,7 +115,7 @@ os.makedirs(save_dir, exist_ok=True)
 # Define the hyperparameters
 # You can modify these values if needed
 # lr = 3e-5
-epochs = 5
+epochs = 4
 train_batch_size = config.batch_size
 validation_batch_size = 256
 
