@@ -25,4 +25,4 @@ parameters:
     min: 0.0
     max: 0.5
   batch_size:
-    values: [32, 64, 128, 256, 512]
+    values: [32, 64, 128, 256]
