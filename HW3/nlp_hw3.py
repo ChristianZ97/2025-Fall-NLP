@@ -99,7 +99,7 @@ default_config = {
     "muon_lr": 0.000570946127776095,
     "adamw_lr": 0.000144505377143309,
     "alpha": 0.1,
-    "batch_size": 256,
+    "batch_size": 32,
     "muon_weight_decay": 0.0330037215159045,
     "adamw_weight_decay": 0.0352225102350684,
 }
