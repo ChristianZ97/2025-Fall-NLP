@@ -193,9 +193,7 @@ class MultiLabelModel(torch.nn.Module):
         self.bert = BertModel.from_pretrained(
             "google-bert/bert-base-uncased", cache_dir="./cache/"
         )
-        # self.roberta = RobertaModel.from_pretrained("FacebookAI/roberta-base", cache_dir="./cache/")
         hidden_size = self.bert.config.hidden_size
-        # hidden_size = self.roberta.config.hidden_size
 
         self.shared_dense = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, hidden_size),
@@ -231,10 +229,8 @@ class MultiLabelModel(torch.nn.Module):
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
         )
-        # roberta_output = self.roberta(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
 
         cls_representation = bert_output.last_hidden_state[:, 0, :]
-        # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
         shared_features = self.shared_dense(cls_representation)
         regression_output = (
@@ -492,7 +488,7 @@ with torch.no_grad():
         for i in range(batch_size):
             reg_error = abs(reg_pred[i] - reg_target[i])
             clf_correct = clf_pred[i] == clf_target[i]
-            if reg_error > 0.5 or not clf_correct:  # 誤差 > 0.5 或分類錯誤
+            if reg_error > 0.5 or not clf_correct:
                 all_errors.append(
                     {
                         "pair_id": pair_ids[i],
@@ -517,9 +513,3 @@ with torch.no_grad():
 
     combined_score = 0.5 * (pearson_corr + accuracy)
     print(f"\nPearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}")
-
-
-import json
-
-with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
-    json.dump(all_errors, f, indent=2, ensure_ascii=False)
