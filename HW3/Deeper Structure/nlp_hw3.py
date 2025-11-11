@@ -363,6 +363,7 @@ def consistency_loss(reg_scores, clf_logits):
 # scoring functions
 psr = load("pearsonr")
 acc = load("accuracy")
+f1_metric = load("f1")
 
 best_score = 0.0
 sample_count = 0
@@ -407,14 +408,14 @@ for ep in range(epochs):
 
             loss = 0.5 * (loss_reg + loss_clf)
 
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-
         raw_grad_norm = 0
         for p in model.parameters():
             if p.grad is not None:
                 param_norm = p.grad.data.norm(2)
                 raw_grad_norm += param_norm.item() ** 2
         raw_grad_norm = raw_grad_norm**0.5
+
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
         loss.backward()
 
@@ -426,9 +427,9 @@ for ep in range(epochs):
         sample_count += batch_size
         wandb.log(
             {
-                "train_loss": loss.item(),
-                "raw_grad_norm": raw_grad_norm,
-                "batch_perplexity": torch.exp(loss).item(),
+                "train/loss": loss.item(),
+                "train/raw_grad_norm": raw_grad_norm,
+                "train/batch_perplexity": torch.exp(loss).item(),
             },
             step=sample_count,
         )
@@ -478,13 +479,21 @@ for ep in range(epochs):
         )
         accuracy = accuracy_result["accuracy"]
 
+        f1_result = f1_metric.compute(
+            predictions=all_clf_preds, references=all_clf_targets, average="macro"
+        )
+        macro_f1_score = f1_result["f1"]
+
         combined_score = 0.5 * pearson_corr + 0.5 * accuracy
-        print(f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}")
+        print(
+            f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Macro-F1={macro_f1_score:.4f}, Combine={combined_score:.4f}"
+        )
         wandb.log(
             {
-                "val_pearson": pearson_corr,
-                "val_accuracy": accuracy,
-                "val_combined_score": combined_score,
+                "val/pearson": pearson_corr,
+                "val/accuracy": accuracy,
+                "val/macro_f1": macro_f1_score,
+                "val/combined_score": combined_score,
             },
             step=sample_count,
         )
@@ -538,17 +547,23 @@ with torch.no_grad():
     accuracy_result = acc.compute(predictions=all_clf_preds, references=all_clf_targets)
     accuracy = accuracy_result["accuracy"]
 
+    f1_result = f1_metric.compute(
+        predictions=all_clf_preds, references=all_clf_targets, average="macro"
+    )
+    macro_f1_score = f1_result["f1"]
+
     combined_score = 0.5 * pearson_corr + 0.5 * accuracy
     print(
-        f"\nPearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Combine={combined_score:.4f}"
+        f"\nTest: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Macro-F1={macro_f1_score:.4f}, Combine={combined_score:.4f}"
     )
 
 
 wandb.log(
     {
-        "test_pearson": pearson_corr,
-        "test_accuracy": accuracy,
-        "test_combined_score": combined_score,
+        "test/pearson": pearson_corr,
+        "test/accuracy": accuracy,
+        "test/macro_f1": macro_f1_score,
+        "test/combined_score": combined_score,
     }
 )
 
