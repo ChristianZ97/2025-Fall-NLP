@@ -96,11 +96,12 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "adamw_lr": 0.001467373585425,
-    "adamw_weight_decay": 0.05732828165628,
-    "alpha": 0.16429754517499,
-    "muon_lr": 0.000398859935871,
-    "muon_weight_decay": 0.016252159705064,
+    "muon_lr": 0.000570946127776095,
+    "adamw_lr": 0.000144505377143309,
+    "alpha": 0.1,
+    "batch_size": 32,
+    "muon_weight_decay": 0.0330037215159045,
+    "adamw_weight_decay": 0.0352225102350684,
 }
 
 wandb.init(
@@ -115,7 +116,7 @@ os.makedirs(save_dir, exist_ok=True)
 # You can modify these values if needed
 # lr = 3e-5
 epochs = 4
-train_batch_size = 32
+train_batch_size = config.batch_size
 validation_batch_size = 256
 
 # TODO1: Create batched data for DataLoader
