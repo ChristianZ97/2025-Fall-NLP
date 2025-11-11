@@ -397,7 +397,7 @@ class SweepAnalyzer:
         print("=" * 70)
 
         # 讀取原始配置的其他設定
-        program = "train.py"
+        program = "nlp_hw3.py"
         method = "bayes"
         metric_goal = "maximize"
 
