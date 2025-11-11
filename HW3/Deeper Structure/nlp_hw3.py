@@ -226,7 +226,7 @@ class MultiLabelModel(torch.nn.Module):
             torch.nn.RMSNorm(hidden_size),
             torch.nn.SiLU(),
             torch.nn.Linear(hidden_size, 1),  # [1, 5]
-            torch.nn.Tanh(),
+            # torch.nn.Tanh(),
         )
 
         self.classification_head = torch.nn.Sequential(
@@ -261,9 +261,8 @@ class MultiLabelModel(torch.nn.Module):
         # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
         shared_features = self.shared_dense(cls_representation)
-        regression_output = (
-            self.regression_head(shared_features) * 2 + 3
-        )  # [-1, 1] -> [-2, 2] -> [1, 5]
+        # regression_output = (self.regression_head(shared_features) * 2 + 3)  # [-1, 1] -> [-2, 2] -> [1, 5]
+        regression_output = self.regression_head(shared_features)
         classification_output = self.classification_head(shared_features)
 
         return {
