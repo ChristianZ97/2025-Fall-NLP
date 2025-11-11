@@ -45,7 +45,7 @@ def set_seed(seed=42):
     # print(f"\n\nUsing random seed {seed}")
 
 
-set_seed()
+set_seed(3407)
 
 # from huggingface_hub import login
 # login(token=userdata.get("HF_TOKEN"))
@@ -96,12 +96,11 @@ class SemevalDataset(Dataset):
 # Define the hyperparameters
 # You can modify these values if needed
 # lr = 3e-5
-muon_lr = 0.000593599600653124
-muon_weight_decay = 0.0375882867078055
-adamw_lr = 0.000149236922082437
-adamw_weight_decay = 0.0358972853872122
-alpha = 0.126998060525388
-dropout_rate = 0.05
+muon_lr = 0.000465139185499006
+muon_weight_decay = 0.0824561916984056
+adamw_lr = 0.00109094421041732
+adamw_weight_decay = 0.0351438120651418
+alpha = 0.292453980243448
 
 epochs = 4
 train_batch_size = 32
@@ -193,27 +192,35 @@ class MultiLabelModel(torch.nn.Module):
         self.bert = BertModel.from_pretrained(
             "google-bert/bert-base-uncased", cache_dir="./cache/"
         )
+        # self.roberta = RobertaModel.from_pretrained("FacebookAI/roberta-base", cache_dir="./cache/")
         hidden_size = self.bert.config.hidden_size
+        # hidden_size = self.roberta.config.hidden_size
 
         self.shared_dense = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, hidden_size),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(dropout_rate),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
         )
 
         self.regression_head = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, 256),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 1),  # [1, 5]
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, 1),  # [1, 5]
             torch.nn.Tanh(),
         )
 
         self.classification_head = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, 256),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 3),  # 0, 1, 2
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, 3),  # 0, 1, 2
         )
 
     def forward(self, **kwargs):
@@ -229,8 +236,10 @@ class MultiLabelModel(torch.nn.Module):
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
         )
+        # roberta_output = self.roberta(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
 
         cls_representation = bert_output.last_hidden_state[:, 0, :]
+        # cls_representation = roberta_output.last_hidden_state[:, 0, :]
 
         shared_features = self.shared_dense(cls_representation)
         regression_output = (
@@ -488,7 +497,7 @@ with torch.no_grad():
         for i in range(batch_size):
             reg_error = abs(reg_pred[i] - reg_target[i])
             clf_correct = clf_pred[i] == clf_target[i]
-            if reg_error > 0.5 or not clf_correct:
+            if reg_error > 0.5 or not clf_correct:  # 誤差 > 0.5 或分類錯誤
                 all_errors.append(
                     {
                         "pair_id": pair_ids[i],
@@ -512,4 +521,12 @@ with torch.no_grad():
     accuracy = accuracy_result["accuracy"]
 
     combined_score = 0.5 * (pearson_corr + accuracy)
-    print(f"\nPearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}")
+    print(
+        f"\nTest: Pearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}"
+    )
+
+
+import json
+
+with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
+    json.dump(all_errors, f, indent=2, ensure_ascii=False)
