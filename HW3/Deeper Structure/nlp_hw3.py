@@ -406,6 +406,8 @@ for ep in range(epochs):
 
             loss = 0.5 * (loss_reg + loss_clf)
 
+        loss.backward()
+
         raw_grad_norm = 0
         for p in model.parameters():
             if p.grad is not None:
@@ -414,8 +416,6 @@ for ep in range(epochs):
         raw_grad_norm = raw_grad_norm**0.5
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-
-        loss.backward()
 
         optimizer[0].step()
         optimizer[1].step()
