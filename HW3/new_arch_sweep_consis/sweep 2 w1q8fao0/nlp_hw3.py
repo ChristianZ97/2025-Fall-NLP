@@ -96,11 +96,11 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "adamw_lr": 0.001948774400698,
-    "adamw_weight_decay": 0.042844530807673,
-    "alpha": 0.304760343196983,
-    "muon_lr": 0.000202750804767,
-    "muon_weight_decay": 0.074918670591254,
+    "adamw_lr": 0.001467373585425,
+    "adamw_weight_decay": 0.05732828165628,
+    "alpha": 0.16429754517499,
+    "muon_lr": 0.000398859935871,
+    "muon_weight_decay": 0.016252159705064,
 }
 
 wandb.init(
