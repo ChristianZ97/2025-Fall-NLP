@@ -516,7 +516,9 @@ with torch.no_grad():
     accuracy = accuracy_result["accuracy"]
 
     combined_score = 0.5 * (pearson_corr + accuracy)
-    print(f"\nPearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}")
+    print(
+        f"\nTest: Pearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}"
+    )
 
 
 import json
