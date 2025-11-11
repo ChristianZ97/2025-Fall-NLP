@@ -497,7 +497,7 @@ with torch.no_grad():
         for i in range(batch_size):
             reg_error = abs(reg_pred[i] - reg_target[i])
             clf_correct = clf_pred[i] == clf_target[i]
-            if reg_error > 0.5 or not clf_correct:  # 誤差 > 0.5 或分類錯誤
+            if reg_error > 0.5 or not clf_correct:
                 all_errors.append(
                     {
                         "pair_id": pair_ids[i],
@@ -524,9 +524,3 @@ with torch.no_grad():
     print(
         f"\nTest: Pearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}"
     )
-
-
-import json
-
-with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
-    json.dump(all_errors, f, indent=2, ensure_ascii=False)
