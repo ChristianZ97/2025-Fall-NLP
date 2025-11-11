@@ -45,7 +45,7 @@ def set_seed(seed=42):
     # print(f"\n\nUsing random seed {seed}")
 
 
-set_seed()
+set_seed(3407)
 
 # from huggingface_hub import login
 # login(token=userdata.get("HF_TOKEN"))
