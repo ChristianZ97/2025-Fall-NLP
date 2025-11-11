@@ -10,7 +10,7 @@ mkdir -p "${OUTPUT_DIR}"
 
 # Python 檔案列表
 SCRIPTS=(
-    "nlp_hw3.py"
+    "nlp_hw3_consis.py"
 )
 
 # 初始化 CSV header
