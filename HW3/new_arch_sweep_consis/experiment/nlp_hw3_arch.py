@@ -47,7 +47,7 @@ def set_seed(seed=42):
 
 from seed import SEED
 
-set_seed()
+set_seed(SEED)
 
 # from huggingface_hub import login
 # login(token=userdata.get("HF_TOKEN"))
