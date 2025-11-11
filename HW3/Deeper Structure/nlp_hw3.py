@@ -477,26 +477,23 @@ for ep in range(epochs):
         )
         accuracy = accuracy_result["accuracy"]
 
-        f1_result = f1_metric.compute(
+        f1_macro = f1_metric.compute(
             predictions=all_clf_preds, references=all_clf_targets, average="macro"
-        )
-        macro_f1_score = f1_result["macro_f1"]
-
-        f1_result = f1_metric.compute(
+        )["f1"]
+        f1_weighted = f1_metric.compute(
             predictions=all_clf_preds, references=all_clf_targets, average="weighted"
-        )
-        weighted_f1_score = f1_result["weighted_f1"]
+        )["f1"]
 
         combined_score = 0.5 * pearson_corr + 0.5 * accuracy
         print(
-            f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Macro-F1={macro_f1_score:.4f}, Weighted-F1={weighted_f1_score:.4f} Combine={combined_score:.4f}"
+            f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Macro-F1={f1_macro:.4f}, Weighted-F1={f1_weighted:.4f} Combine={combined_score:.4f}"
         )
         wandb.log(
             {
                 "val/pearson": pearson_corr,
                 "val/accuracy": accuracy,
-                "val/macro_f1": macro_f1_score,
-                "val/weighted_f1": weighted_f1_score,
+                "val/macro_f1": f1_macro,
+                "val/weighted_f1": f1_weighted,
                 "val/combined_score": combined_score,
             },
             step=sample_count,
@@ -551,19 +548,16 @@ with torch.no_grad():
     accuracy_result = acc.compute(predictions=all_clf_preds, references=all_clf_targets)
     accuracy = accuracy_result["accuracy"]
 
-    f1_result = f1_metric.compute(
+    f1_macro = f1_metric.compute(
         predictions=all_clf_preds, references=all_clf_targets, average="macro"
-    )
-    macro_f1_score = f1_result["macro_f1"]
-
-    f1_result = f1_metric.compute(
+    )["f1"]
+    f1_weighted = f1_metric.compute(
         predictions=all_clf_preds, references=all_clf_targets, average="weighted"
-    )
-    weighted_f1_score = f1_result["weighted_f1"]
+    )["f1"]
 
     combined_score = 0.5 * pearson_corr + 0.5 * accuracy
     print(
-        f"\nTest: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Macro-F1={macro_f1_score:.4f}, Weighted-F1={weighted_f1_score:.4f} Combine={combined_score:.4f}"
+        f"\nTest: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Macro-F1={f1_macro:.4f}, Weighted-F1={f1_weighted:.4f} Combine={combined_score:.4f}"
     )
 
 
@@ -571,8 +565,8 @@ wandb.log(
     {
         "test/pearson": pearson_corr,
         "test/accuracy": accuracy,
-        "test/macro_f1": macro_f1_score,
-        "test/weighted_f1": weighted_f1_score,
+        "test/macro_f1": f1_macro,
+        "test/weighted_f1": f1_weighted,
         "test/combined_score": combined_score,
     }
 )
