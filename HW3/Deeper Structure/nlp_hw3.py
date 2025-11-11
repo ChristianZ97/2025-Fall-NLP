@@ -117,7 +117,7 @@ os.makedirs(save_dir, exist_ok=True)
 # You can modify these values if needed
 # lr = 3e-5
 epochs = 4
-train_batch_size = 32
+train_batch_size = config.batch_size
 validation_batch_size = 256
 
 # TODO1: Create batched data for DataLoader
