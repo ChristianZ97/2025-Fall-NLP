@@ -96,12 +96,11 @@ class SemevalDataset(Dataset):
 # Define the hyperparameters
 # You can modify these values if needed
 # lr = 3e-5
-muon_lr = 0.000465139185499
-muon_weight_decay = 0.082456191698405
-adamw_lr = 0.001090944210417
-adamw_weight_decay = 0.035143812065142
+muon_lr = 0.000465139185499006
+muon_weight_decay = 0.0824561916984056
+adamw_lr = 0.00109094421041732
+adamw_weight_decay = 0.0351438120651418
 alpha = 0.292453980243448
-dropout_rate = 0.05
 
 epochs = 4
 train_batch_size = 32
@@ -199,23 +198,29 @@ class MultiLabelModel(torch.nn.Module):
 
         self.shared_dense = torch.nn.Sequential(
             torch.nn.Linear(hidden_size, hidden_size),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(dropout_rate),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
         )
 
         self.regression_head = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, 256),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 1),  # [1, 5]
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, 1),  # [1, 5]
             torch.nn.Tanh(),
         )
 
         self.classification_head = torch.nn.Sequential(
-            torch.nn.Linear(hidden_size, 256),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.1),
-            torch.nn.Linear(256, 3),  # 0, 1, 2
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, hidden_size),
+            torch.nn.RMSNorm(hidden_size),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_size, 3),  # 0, 1, 2
         )
 
     def forward(self, **kwargs):
@@ -516,7 +521,9 @@ with torch.no_grad():
     accuracy = accuracy_result["accuracy"]
 
     combined_score = 0.5 * (pearson_corr + accuracy)
-    print(f"\nPearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}")
+    print(
+        f"\nTest: Pearson={pearson_corr}, Accuracy={accuracy}, Combine={combined_score}"
+    )
 
 
 import json
