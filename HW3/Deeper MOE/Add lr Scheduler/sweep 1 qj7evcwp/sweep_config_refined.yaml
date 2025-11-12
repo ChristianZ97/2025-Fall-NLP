@@ -32,5 +32,3 @@ parameters:
     distribution: uniform
     min: 0.137295919640268
     max: 0.47563732575478723
-  batch_size:
-    values: [16, 64, 128]
