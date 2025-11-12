@@ -1,0 +1,32 @@
+program: nlp_hw3.py
+method: random
+metric:
+  name: test/combined_score
+  goal: maximize
+parameters:
+  adamw_lr:
+    distribution: uniform
+    min: 0.0001
+    max: 0.01
+  adamw_weight_decay:
+    distribution: uniform
+    min: 0.01
+    max: 0.1
+  alpha:
+    distribution: uniform
+    min: 0.0 
+    max: 0.5
+  muon_lr:
+    distribution: uniform
+    min: 0.0001
+    max: 0.01
+  muon_weight_decay:
+    distribution: uniform
+    min: 0.01
+    max: 0.2
+  muon_momentum:
+    distribution: uniform
+    min: 0.9
+    max: 0.999
+  batch_size:
+    values: [8, 16, 32, 64, 128]

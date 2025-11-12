@@ -6,6 +6,7 @@ import yaml
 import argparse
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+import re
 
 
 class SweepAnalyzer:
@@ -13,51 +14,24 @@ class SweepAnalyzer:
 
     # 已知的 metric 和 metadata 列（不是超參數）
     METRIC_KEYWORDS = [
-        "score",
-        "accuracy",
-        "loss",
-        "pearson",
-        "spearman",
-        "f1",
-        "precision",
-        "recall",
-        "auc",
-        "metric",
-    ]
-
-    METADATA_COLS = [
-        "epoch",
-        "step",
-        "runtime",
-        "timestamp",
-        "duration",
-        "name",
-        "state",
-        "created",
-        "tags",
-        "notes",
-        "id",
-        "username",
-        "version",
-        "host",
-        "sweep_id",
-        "run_id",
-        "batch_perplexity",
-        "raw_grad_norm",
+        "test/combined_score",
+        "test/accuracy",
+        "test/pearson",
+        "test/weighted_f1",
+        "test/macro_f1",
     ]
 
     # 通常使用對數尺度的參數關鍵字
     LOG_SCALE_KEYWORDS = [
-        "lr",
-        "learning_rate",
+        r".*lr$",
         "alpha",
         "beta",
         "eps",
         "epsilon",
-        "weight_decay",
+        r".*weight_decay$",
         "decay",
         "gamma",
-        "momentum",
+        r".*momentum$",
     ]
 
     def __init__(
@@ -112,9 +86,6 @@ class SweepAnalyzer:
         potential_params = []
 
         for col in self.df.columns:
-            # 跳過已知的 metric 和 metadata 列
-            if self._is_metadata_column(col):
-                continue
 
             # 檢查是否為數值型
             if not self._is_numeric_column(col):
@@ -134,24 +105,6 @@ class SweepAnalyzer:
             print(f"  {i:2d}. {param:.<40} ({nunique} 個不同值)")
 
         return self.search_params
-
-    def _is_metadata_column(self, col: str) -> bool:
-        """判斷是否為 metadata 列"""
-        col_lower = col.lower()
-
-        # 完全匹配 metadata 列名
-        if col_lower in [m.lower() for m in self.METADATA_COLS]:
-            return True
-
-        # 包含 metric 關鍵字
-        if any(keyword in col_lower for keyword in self.METRIC_KEYWORDS):
-            return True
-
-        # 以下劃線開頭（W&B 內部欄位）
-        if col.startswith("_"):
-            return True
-
-        return False
 
     def _is_numeric_column(self, col: str) -> bool:
         """判斷是否為數值型列"""
@@ -306,10 +259,16 @@ class SweepAnalyzer:
 
         # 3. 根據參數名稱判斷
         for keyword in self.LOG_SCALE_KEYWORDS:
-            if keyword in param_lower:
-                if stats["min"] > 0:
-                    return "log_uniform_values"
-                break
+            if keyword.startswith(".*") and keyword.endswith("$"):
+                if re.match(keyword, param_lower):
+                    if stats["min"] > 0:
+                        return "log_uniform_values"
+                    break
+            else:
+                if keyword in param_lower:
+                    if stats["min"] > 0:
+                        return "log_uniform_values"
+                    break
 
         # 4. 默認使用 uniform
         return "uniform"
