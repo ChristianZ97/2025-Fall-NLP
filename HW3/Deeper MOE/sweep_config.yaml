@@ -1,32 +1,32 @@
+program: nlp_hw3_moe.py
 method: bayes
 metric:
-  goal: maximize
   name: test/combined_score
+  goal: maximize
 parameters:
   adamw_lr:
     distribution: log_uniform_values
-    max: 0.016574755981881916
-    min: 0.00035667028745198627
+    min: 0.0005836557602121656
+    max: 0.009041314422502073
   adamw_weight_decay:
-    distribution: log_uniform_values
-    max: 0.1828097046897116
-    min: 0.007890612509851631
+    distribution: uniform
+    min: 0.011120530827615008
+    max: 0.09009925975608893
   alpha:
     distribution: uniform
-    max: 0.8904185499522749
-    min: 0.024291823528389128
-  batch_size:
-    values: [16, 64, 128]
+    min: 0.03886645051446547
+    max: 0.48805536730150956
   muon_lr:
     distribution: log_uniform_values
-    max: 0.019823893732845335
-    min: 0.0007629769691362112
-  muon_momentum:
-    distribution: log_uniform_values
-    max: 1.9391248798613956
-    min: 0.4531930922090462
+    min: 0.00014156850155393332
+    max: 0.004806633419373154
   muon_weight_decay:
-    distribution: log_uniform_values
-    max: 0.33136870780926114
-    min: 0.010341723651306702
-program: nlp_hw3_moe.py
+    distribution: uniform
+    min: 0.05123461511694752
+    max: 0.18204534123945576
+  muon_momentum:
+    distribution: uniform
+    min: 0.8981027662917295
+    max: 0.9920297706214157
+  batch_size:
+    values: [16, 64, 128]
