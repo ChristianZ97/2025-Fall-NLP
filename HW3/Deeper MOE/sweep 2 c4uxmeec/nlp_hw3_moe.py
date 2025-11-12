@@ -30,7 +30,6 @@ import numpy as np
 import random
 import os
 from torch.cuda.amp import autocast
-from transformers import get_linear_schedule_with_warmup
 
 os.makedirs("./saved_models", exist_ok=True)
 
@@ -97,14 +96,13 @@ class SemevalDataset(Dataset):
 
 # Hyperparameter configuration
 default_config = {
-    "adamw_lr": 0.0009547440394868,
-    "adamw_weight_decay": 0.0346079596972638,
-    "alpha": 0.1129381561923714,
-    "muon_lr": 0.0009064978096377,
-    "muon_weight_decay": 0.0847369826133907,
-    "muon_momentum": 0.9583726960011046,
-    "batch_size": 64,
-    "warmup_ratio": 0.1,
+    "adamw_lr": 0.0045164451935394,
+    "adamw_weight_decay": 0.0358177926701045,
+    "alpha": 0.3104593315963244,
+    "muon_lr": 0.000610930456822,
+    "muon_weight_decay": 0.0931059344560822,
+    "muon_momentum": 0.9509599800192388,
+    "batch_size": 128,
 }
 
 wandb.init(
@@ -341,22 +339,6 @@ optimizer = [
     ),
 ]
 
-num_training_steps = len(dl_train) * epochs
-num_warmup_steps = int(num_training_steps * config.warmup_ratio)
-scheduler = [
-    get_linear_schedule_with_warmup(
-        optimizer=optimizer[0],
-        num_warmup_steps=num_warmup_steps,
-        num_training_steps=num_training_steps,
-    ),
-    get_linear_schedule_with_warmup(
-        optimizer=optimizer[1],
-        num_warmup_steps=num_warmup_steps,
-        num_training_steps=num_training_steps,
-    ),
-]
-
-
 # TODO3-2: Define your loss functions (you should have two)
 # Write your code here
 
@@ -462,8 +444,6 @@ for ep in range(epochs):
 
         optimizer[0].step()
         optimizer[1].step()
-        scheduler[0].step()
-        scheduler[1].step()
 
         pbar.set_postfix(loss=loss.item())
         batch_size = batch["input_ids"].shape[0]
