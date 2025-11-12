@@ -328,7 +328,7 @@ class SweepAnalyzer:
     def generate_refined_config(self, param_configs: Dict) -> Dict[str, Any]:
         """Generates and saves the new sweep configuration YAML file."""
         print(f"\n{'='*70}\n7. GENERATING REFINED CONFIG\n{'='*70}")
-        program, method, metric_goal = "train.py", "bayes", "maximize"
+        program, method, metric_goal = "nlp_hw3.py", "bayes", "maximize"
         if self.original_config_path and self.original_config_path.exists():
             with open(self.original_config_path, "r") as f:
                 original = yaml.safe_load(f)
