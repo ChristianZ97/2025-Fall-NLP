@@ -505,7 +505,7 @@ for ep in range(epochs):
 
         combined_score = 0.5 * pearson_corr + 0.5 * accuracy
         print(
-            f"Epoch {ep+1}: Pearson={pearson_corr}, Accuracy={accuracy}, Macro-F1={f1_macro}, Weighted-F1={f1_weighted} Combine={combined_score}"
+            f"Epoch {ep+1}: Pearson={pearson_corr}, Accuracy={accuracy}, Macro-F1={f1_macro}, Weighted-F1={f1_weighted}, Combine={combined_score}"
         )
 
         if combined_score > best_score:
@@ -590,7 +590,7 @@ with torch.no_grad():
 
     combined_score = 0.5 * pearson_corr + 0.5 * accuracy
     print(
-        f"\nTest: Pearson={pearson_corr}, Accuracy={accuracy}, Macro-F1={f1_macro}, Weighted-F1={f1_weighted} Combine={combined_score}"
+        f"\nTest: Pearson={pearson_corr}, Accuracy={accuracy}, Macro-F1={f1_macro}, Weighted-F1={f1_weighted}, Combine={combined_score}"
     )
 
 with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
