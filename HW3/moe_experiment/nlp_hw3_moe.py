@@ -12,12 +12,11 @@ Original file is located at
 #! pip install git+https://github.com/KellerJordan/Muon
 
 # from google.colab import userdata
-from transformers import BertTokenizer, BertModel, RobertaTokenizer, RobertaModel
+from transformers import BertTokenizer, BertModel, get_linear_schedule_with_warmup
 from datasets import load_dataset
 from evaluate import load
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torch.optim import AdamW
 from tqdm import tqdm
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -27,8 +26,7 @@ import time
 import numpy as np
 import random
 import os
-from torch.cuda.amp import autocast
-from transformers import get_linear_schedule_with_warmup
+import json
 
 os.makedirs("./saved_models", exist_ok=True)
 
@@ -45,7 +43,10 @@ def set_seed(seed=42):
     # print(f"\n\nUsing random seed {seed}")
 
 
-set_seed(3407)
+from seed import SEED
+
+set_seed(SEED)
+# set_seed(3407)
 
 # from huggingface_hub import login
 # login(token=userdata.get("HF_TOKEN"))
@@ -142,6 +143,8 @@ def collate_fn(batch):
 
     return {
         "sentence_pair_id": pair_ids,
+        "premise": premises,
+        "hypothesis": hypotheses,
         "input_ids": encoded["input_ids"],
         "attention_mask": encoded["attention_mask"],
         "token_type_ids": encoded["token_type_ids"],
@@ -505,16 +508,16 @@ for ep in range(epochs):
 
         combined_score = 0.5 * pearson_corr + 0.5 * accuracy
         print(
-            f"Epoch {ep+1}: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Macro-F1={f1_macro:.4f}, Weighted-F1={f1_weighted:.4f} Combine={combined_score:.4f}"
+            f"Epoch {ep+1}: Pearson={pearson_corr}, Accuracy={accuracy}, Macro-F1={f1_macro}, Weighted-F1={f1_weighted}, Combine={combined_score}"
         )
 
         if combined_score > best_score:
             best_score = combined_score
-            torch.save(model.state_dict(), f"{save_dir}/best_model.ckpt")
+            torch.save(model.state_dict(), f"./saved_models/best_model.ckpt")
 
 # Load the model
 model = MultiLabelModel().to(device)
-model.load_state_dict(torch.load(f"{save_dir}/best_model.ckpt", weights_only=True))
+model.load_state_dict(torch.load(f"./saved_models/best_model.ckpt", weights_only=True))
 
 # Test Loop
 pbar = tqdm(dl_test, desc="Test")
@@ -533,6 +536,7 @@ with torch.no_grad():
     all_reg_targets = []
     all_clf_preds = []
     all_clf_targets = []
+    all_errors = []
 
     for batch in pbar:
         batch = {
@@ -551,6 +555,29 @@ with torch.no_grad():
         all_clf_preds.extend(clf_pred)
         all_clf_targets.extend(clf_target)
 
+        batch_size = batch["input_ids"].shape[0]
+        pair_ids = batch["sentence_pair_id"]
+
+        for i in range(batch_size):
+            reg_error = abs(reg_pred[i] - reg_target[i])
+            clf_correct = clf_pred[i] == clf_target[i]
+            if reg_error > 0.5 or not clf_correct:
+                all_errors.append(
+                    {
+                        "pair_id": pair_ids[i],
+                        "premise": (batch["premise"][i] if "premise" in batch else ""),
+                        "hypothesis": (
+                            batch["hypothesis"][i] if "hypothesis" in batch else ""
+                        ),
+                        "reg_pred": float(reg_pred[i]),
+                        "reg_target": float(reg_target[i]),
+                        "reg_error": float(reg_error),
+                        "clf_pred": int(clf_pred[i]),
+                        "clf_target": int(clf_target[i]),
+                        "clf_correct": bool(clf_correct),
+                    }
+                )
+
     pearson_result = psr.compute(predictions=all_reg_preds, references=all_reg_targets)
     pearson_corr = pearson_result["pearsonr"]
 
@@ -566,5 +593,8 @@ with torch.no_grad():
 
     combined_score = 0.5 * pearson_corr + 0.5 * accuracy
     print(
-        f"\nTest: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Macro-F1={f1_macro:.4f}, Weighted-F1={f1_weighted:.4f} Combine={combined_score:.4f}"
+        f"\nTest: Pearson={pearson_corr}, Accuracy={accuracy}, Macro-F1={f1_macro}, Weighted-F1={f1_weighted}, Combine={combined_score}"
     )
+
+with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
+    json.dump(all_errors, f, indent=2, ensure_ascii=False)
