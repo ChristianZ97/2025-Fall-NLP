@@ -12,11 +12,12 @@ Original file is located at
 #! pip install git+https://github.com/KellerJordan/Muon
 
 # from google.colab import userdata
-from transformers import BertTokenizer, BertModel, get_linear_schedule_with_warmup
+from transformers import BertTokenizer, BertModel, RobertaTokenizer, RobertaModel
 from datasets import load_dataset
 from evaluate import load
 import torch
 from torch.utils.data import Dataset, DataLoader
+from torch.optim import AdamW
 from tqdm import tqdm
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -26,7 +27,8 @@ import time
 import numpy as np
 import random
 import os
-import json
+from torch.cuda.amp import autocast
+from transformers import get_linear_schedule_with_warmup
 
 os.makedirs("./saved_models", exist_ok=True)
 
@@ -140,8 +142,6 @@ def collate_fn(batch):
 
     return {
         "sentence_pair_id": pair_ids,
-        "premise": premises,
-        "hypothesis": hypotheses,
         "input_ids": encoded["input_ids"],
         "attention_mask": encoded["attention_mask"],
         "token_type_ids": encoded["token_type_ids"],
@@ -533,7 +533,6 @@ with torch.no_grad():
     all_reg_targets = []
     all_clf_preds = []
     all_clf_targets = []
-    all_errors = []
 
     for batch in pbar:
         batch = {
@@ -552,29 +551,6 @@ with torch.no_grad():
         all_clf_preds.extend(clf_pred)
         all_clf_targets.extend(clf_target)
 
-        batch_size = batch["input_ids"].shape[0]
-        pair_ids = batch["sentence_pair_id"]
-
-        for i in range(batch_size):
-            reg_error = abs(reg_pred[i] - reg_target[i])
-            clf_correct = clf_pred[i] == clf_target[i]
-            if reg_error > 0.5 or not clf_correct:
-                all_errors.append(
-                    {
-                        "pair_id": pair_ids[i],
-                        "premise": (batch["premise"][i] if "premise" in batch else ""),
-                        "hypothesis": (
-                            batch["hypothesis"][i] if "hypothesis" in batch else ""
-                        ),
-                        "reg_pred": float(reg_pred[i]),
-                        "reg_target": float(reg_target[i]),
-                        "reg_error": float(reg_error),
-                        "clf_pred": int(clf_pred[i]),
-                        "clf_target": int(clf_target[i]),
-                        "clf_correct": bool(clf_correct),
-                    }
-                )
-
     pearson_result = psr.compute(predictions=all_reg_preds, references=all_reg_targets)
     pearson_corr = pearson_result["pearsonr"]
 
@@ -592,6 +568,3 @@ with torch.no_grad():
     print(
         f"\nTest: Pearson={pearson_corr:.4f}, Accuracy={accuracy:.4f}, Macro-F1={f1_macro:.4f}, Weighted-F1={f1_weighted:.4f} Combine={combined_score:.4f}"
     )
-
-with open(f"./error_analysis.json", "w", encoding="utf-8") as f:
-    json.dump(all_errors, f, indent=2, ensure_ascii=False)
