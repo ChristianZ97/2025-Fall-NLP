@@ -327,7 +327,7 @@ class RAGPipeline:
 
 if __name__ == "__main__":
     # === Step 1: Data Preparation (Toy Example) ===
-    """
+
     documents = [
         "Solar panels convert sunlight into electricity using photovoltaic cells.",
         "Wind turbines generate power by converting kinetic energy from wind.",
@@ -335,31 +335,6 @@ if __name__ == "__main__":
         "Nuclear power plants use fission to generate heat and steam.",
     ]
     doc_ids = ["doc_1", "doc_2", "doc_3", "doc_4"]
-    """
-
-    data_root = Path("./data/WattBot2025/download/texts")  # 和 data_preprocess.py 對應
-    documents = []
-    doc_ids = []
-
-    if not data_root.exists():
-        raise FileNotFoundError(f"Text directory not found: {data_root}")
-
-    for txt_path in sorted(data_root.glob("*.txt")):
-        try:
-            text = txt_path.read_text(encoding="utf-8", errors="ignore")
-        except UnicodeDecodeError:
-            # 如果有亂碼就再試一個寬鬆編碼
-            text = txt_path.read_text(encoding="latin1", errors="ignore")
-
-        if not text.strip():
-            continue  # 空文件就跳過
-
-        documents.append(text)
-        # 用檔名（不含 .txt）當作 doc_id，如 2405.01814
-        doc_ids.append(txt_path.stem)
-
-    print(f"Loaded {len(documents)} documents from {data_root}")
-
 
     # === Step 2: Initialize Components ===
 
