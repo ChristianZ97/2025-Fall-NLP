@@ -25,7 +25,7 @@ CUDA_VISIBLE_DEVICES=6,7
 echo $CUDA_VISIBLE_DEVICES
 vllm serve "openai/gpt-oss-20b" \
   --tensor-parallel-size 2 \
-  --gpu-memory-utilization 0.9 \
+  --gpu-memory-utilization 0.75 \
   --max-model-len 8192 \
   --enforce-eager
 ```
