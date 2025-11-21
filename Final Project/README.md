@@ -23,9 +23,8 @@ python data_preprocess.py
 ```bash
 CUDA_VISIBLE_DEVICES=4,5,6,7 \
 vllm serve "openai/gpt-oss-20b" \
+  --gpu-memory-utilization 0.5 \
   --tensor-parallel-size 4 \
-  --gpu-memory-utilization 0.9 \
-  --max-model-len 8192 \
   --enforce-eager
 ```
 
