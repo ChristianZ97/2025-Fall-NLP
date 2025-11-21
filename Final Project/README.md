@@ -24,7 +24,6 @@ python data_preprocess.py
 vllm serve "meta-llama/Llama-3.2-1B" \
   --tensor-parallel-size 4 \
   --gpu-memory-utilization 0.7 \
-  --trust-remote-code
 ```
 
 ## Run RAG Pipeline
