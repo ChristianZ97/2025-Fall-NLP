@@ -32,11 +32,11 @@ class EmbeddingModel:
         print(f"Loading Embedding Model: {model_name} on {self.device}...")
 
         self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name, trust_remote_code=True
+            model_name, trust_remote_code=True, device_map="auto"
         )
-        self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True).to(
-            self.device
-        )
+        self.model = AutoModel.from_pretrained(
+            model_name, trust_remote_code=True, device_map="auto"
+        ).to(self.device)
         self.cache_db = cache_path
         self._init_cache()
 
@@ -158,10 +158,10 @@ class Reranker:
 
     def __init__(self, model_name: str = "BAAI/bge-reranker-large"):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_name).to(
-            self.device
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, device_map="auto")
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            model_name, device_map="auto"
+        ).to(self.device)
         self.model.eval()
 
     def rerank(self, query: str, docs: List[Dict], top_k: int) -> List[Dict]:
