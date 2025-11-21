@@ -22,8 +22,7 @@ python data_preprocess.py
 ## Run vLLM Server
 ```bash
 vllm serve "meta-llama/Llama-3.2-1B" \
-  --tensor-parallel-size 4 \
-  --gpu-memory-utilization 0.7 \
+  --gpu-memory-utilization 0.5 \
 ```
 
 ## Run RAG Pipeline
