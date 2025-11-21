@@ -23,7 +23,7 @@ python data_preprocess.py
 ```bash
 export CUDA_VISIBLE_DEVICES=4,5,6,7
 echo $CUDA_VISIBLE_DEVICES
-vllm serve --host 0.0.0.0 --port 8090 \
+vllm serve
   --tensor-parallel-size 4 \
   --gpu-memory-utilization 0.7 \
   --trust-remote-code \
