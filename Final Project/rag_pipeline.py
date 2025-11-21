@@ -5,6 +5,8 @@ import sqlite3
 import hashlib
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+import requests
+
 
 import torch
 import numpy as np
