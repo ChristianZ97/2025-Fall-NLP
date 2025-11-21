@@ -21,8 +21,7 @@ python data_preprocess.py
 
 ## Run vLLM Server
 ```bash
-CUDA_VISIBLE_DEVICES=6,7
-echo $CUDA_VISIBLE_DEVICES
+CUDA_VISIBLE_DEVICES=6,7 \
 vllm serve "openai/gpt-oss-20b" \
   --tensor-parallel-size 2 \
   --gpu-memory-utilization 0.75 \
@@ -37,8 +36,7 @@ python rag_pipeline.py
 
 ## Run Full Test
 ```bash
-CUDA_VISIBLE_DEVICES=1
-echo $CUDA_VISIBLE_DEVICES
+CUDA_VISIBLE_DEVICES=1 \
 python full_test.py
 ```
 
