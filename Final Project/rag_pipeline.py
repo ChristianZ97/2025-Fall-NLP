@@ -213,16 +213,15 @@ class LLMClient:
             "model": self.model_name,
             "messages": messages,
             "temperature": 0.7,
-            # 視需要加:
-            # "max_tokens": 512,
+            "max_tokens": 512,  # 明確給一個正整數，避免 max_tokens 計算成負數的 bug
+            "stream": False,  # 先關掉 streaming，簡化問題
         }
 
-        headers = {
-            "Content-Type": "application/json",
-        }
-        # 如果啟動 vLLM 有設 --api-key，就要加這行
+        headers = {"Content-Type": "application/json"}
         if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["Authorization"] = (
+                f"Bearer {self.api_key}"  # 如果 vLLM 有設 --api-key
+            )
 
         try:
             resp = requests.post(
@@ -231,10 +230,12 @@ class LLMClient:
                 data=json.dumps(payload),
                 timeout=180,
             )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+            if resp.status_code != 200:
+                return f"LLM Error: {resp.status_code} {resp.text}"
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
         except Exception as e:
-            return f"LLM Error: {e}"
+            return f"LLM Error (client-side): {e}"
 
 
 # --- 3. The RAG Pipeline ---
