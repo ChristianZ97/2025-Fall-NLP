@@ -34,9 +34,9 @@ class EmbeddingModel:
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True
         )
-        self.model = AutoModel.from_pretrained(
-            model_name, trust_remote_code=True
-        ).to(self.device)
+        self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True).to(
+            self.device
+        )
         self.cache_db = cache_path
         self._init_cache()
 
@@ -159,9 +159,9 @@ class Reranker:
     def __init__(self, model_name: str = "BAAI/bge-reranker-large"):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForSequenceClassification.from_pretrained(
-            model_name
-        ).to(self.device)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name).to(
+            self.device
+        )
         self.model.eval()
 
     def rerank(self, query: str, docs: List[Dict], top_k: int) -> List[Dict]:
@@ -188,17 +188,18 @@ class Reranker:
 
 class LLMClient:
     """
-    OpenAI 兼容介面 (可接 OpenAI API 或 vLLM server)。
+    直接呼叫 vLLM 的 OpenAI-compatible /v1/chat/completions API。
     """
 
     def __init__(
         self,
         model_name: str,
-        api_key: str = "EMPTY",
         base_url: str = "http://localhost:8000/v1",
+        api_key: str = "EMPTY",  # 如果有設 --api-key 再換成真的 key
     ):
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model_name = model_name
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
 
     def generate(self, user_prompt: str, system_prompt: str = "") -> str:
         messages = []
@@ -206,11 +207,30 @@ class LLMClient:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": user_prompt})
 
+        payload = {
+            "model": self.model_name,
+            "messages": messages,
+            "temperature": 0.7,
+            # 視需要加:
+            # "max_tokens": 512,
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+        # 如果啟動 vLLM 有設 --api-key，就要加這行
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
         try:
-            response = self.client.chat.completions.create(
-                model=self.model_name, messages=messages, temperature=0.7
+            resp = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                data=json.dumps(payload),
+                timeout=180,
             )
-            return response.choices[0].message.content
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
         except Exception as e:
             return f"LLM Error: {e}"
 
