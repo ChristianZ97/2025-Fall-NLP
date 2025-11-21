@@ -21,7 +21,7 @@ python data_preprocess.py
 
 ## Run vLLM Server
 ```bash
-export CUDA_VISIBLE_DEVICES=4,5,6,7 \
+CUDA_VISIBLE_DEVICES=4,5,6,7 \
 vllm serve "openai/gpt-oss-20b" \
   --tensor-parallel-size 4 \
   --gpu-memory-utilization 0.9 \
@@ -36,7 +36,7 @@ python rag_pipeline.py
 
 ## Run Full Test
 ```bash
-export CUDA_VISIBLE_DEVICES=1 \
+CUDA_VISIBLE_DEVICES=1 \
 python full_test.py
 ```
 
