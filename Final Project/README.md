@@ -37,7 +37,7 @@ python rag_pipeline.py
 
 ## Run Full Test
 ```bash
-CUDA_VISIBLE_DEVICES=0
+CUDA_VISIBLE_DEVICES=1
 echo $CUDA_VISIBLE_DEVICES
 python full_test.py
 ```
