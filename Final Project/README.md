@@ -21,8 +21,11 @@ python data_preprocess.py
 
 ## Run vLLM Server
 ```bash
-vllm serve "meta-llama/Llama-3.2-1B" \
+export CUDA_VISIBLE_DEVICES=4,5,6,7
+echo $CUDA_VISIBLE_DEVICES
+vllm serve "openai/gpt-oss-20b" \
   --gpu-memory-utilization 0.5 \
+  --tensor-parallel-size 4 \
 ```
 
 ## Run RAG Pipeline
