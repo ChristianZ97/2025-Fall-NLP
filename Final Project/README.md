@@ -21,13 +21,10 @@ python data_preprocess.py
 
 ## Run vLLM Server
 ```bash
-export CUDA_VISIBLE_DEVICES=4,5,6,7
-echo $CUDA_VISIBLE_DEVICES
-vllm serve
+vllm serve "openai/gpt-oss-20b" \
   --tensor-parallel-size 4 \
   --gpu-memory-utilization 0.7 \
-  --trust-remote-code \
-  openai/gpt-oss-20b
+  --trust-remote-code
 ```
 
 ## Run RAG Pipeline
