@@ -1,7 +1,16 @@
 import os
 from pathlib import Path
 import pandas as pd
-from rag_pipeline import EmbeddingModel, VectorStore, KeywordRetriever, Reranker, LLMClient, RAGPipeline
+from rag_pipeline import (
+    EmbeddingModel,
+    VectorStore,
+    KeywordRetriever,
+    Reranker,
+    LLMClient,
+    RAGPipeline,
+)
+from tqdm.auto import tqdm
+
 
 # ---------------------------------------------------------------------
 # 0. 路徑設定（依你實際情況調整）
@@ -10,6 +19,7 @@ DATA_DIR = Path("./data/WattBot2025")  # 和你 dummy code 一致
 DOC_DIR = DATA_DIR / "download" / "texts"  # data_preprocess.py 產出 .txt 的資料夾
 
 FALLBACK_ANSWER = "Unable to answer with confidence based on the provided documents."
+
 
 # ---------------------------------------------------------------------
 # 1. 載入文件：把所有 .txt 當成 RAG 的 knowledge base
@@ -35,6 +45,7 @@ def load_text_documents(doc_dir: Path):
 
     print(f"Loaded {len(documents)} documents from {doc_dir}")
     return documents, doc_ids
+
 
 # ---------------------------------------------------------------------
 # 2. 建立 RAG pipeline（只做一次，避免在迴圈裡重複初始化）
@@ -65,6 +76,7 @@ def build_rag_pipeline():
     pipeline = RAGPipeline(embedder, vector_store, llm, bm25, reranker)
     return pipeline
 
+
 # ---------------------------------------------------------------------
 # 3. 定義 system_prompt 與 template
 #    （沿用你原本只輸出 answer + explanation 的 JSON）
@@ -85,22 +97,23 @@ Answer in JSON format containing 'answer' and 'explanation'.
 # ---------------------------------------------------------------------
 # 4. full_test：跑完整 test_Q.csv，產出 submission_full_test.csv
 # ---------------------------------------------------------------------
+
+
 def run_full_test():
-    # 4.1 讀取 train_QA / test_Q
+    tqdm.pandas()
     train_qa = pd.read_csv(DATA_DIR / "train_QA.csv")
     test_q = pd.read_csv(DATA_DIR / "test_Q.csv")
 
     expected_columns = list(train_qa.columns)
 
-    # 4.2 建立 RAG pipeline（只做一次）
+    pipeline_build_start = time.time()
     pipeline = build_rag_pipeline()
+    pipeline_build_end = time.time()
+    print(f"Pipeline built in {pipeline_build_end - pipeline_build_start:.1f} seconds")
 
-    # 4.3 定義：對單一 row 產生一個 submission row
     def answer_one_row(row):
         question = row["question"]
-        meta = {
-            "id": row["id"],
-        }
+        meta = {"id": row["id"]}
 
         result = pipeline.run(
             question=question,
@@ -111,8 +124,6 @@ def run_full_test():
         )
 
         parsed = result.get("answer", {})
-        # parsed 期望長這樣：
-        # {"answer": "...", "explanation": "..."}
 
         out = {}
         for col in expected_columns:
@@ -131,24 +142,32 @@ def run_full_test():
                 "ref_url",
                 "supporting_materials",
             ]:
-                # 目前先全部給 is_blank，之後要更精細可以再調整
                 out[col] = "is_blank"
             else:
-                # 任何額外欄位也安全地設為 is_blank
                 out[col] = "is_blank"
 
         return pd.Series(out)
 
-    # 4.4 對整個 test_Q 套用
-    submission = test_q.apply(answer_one_row, axis=1)
+    n_questions = len(test_q)
+    print(f"Running full_test on {n_questions} questions...")
 
-    # 4.5 確保欄位順序和 train_QA 完全一致
+    start_time = time.time()
+
+    # 關鍵：用 progress_apply 取代 apply，會顯示進度條+時間資訊
+    submission = test_q.progress_apply(answer_one_row, axis=1)
+
+    end_time = time.time()
+    total_sec = end_time - start_time
+    per_q = total_sec / max(n_questions, 1)
+
+    print(f"Answering finished in {total_sec:.1f} seconds")
+    print(f"Average {per_q:.2f} seconds per question")
+
     submission = submission[expected_columns]
-
-    # 4.6 存成新的 CSV
     out_path = Path("./submission.csv")
     submission.to_csv(out_path, index=False)
     print("Saved full-test submission to", out_path)
+
 
 # ---------------------------------------------------------------------
 # 5. 實際執行
