@@ -335,7 +335,7 @@ if __name__ == "__main__":
     # )
 
     llm = LLMClient(
-        model_name="openai/gpt-oss-20b",  # 您的 vLLM 模型名稱
+        model_name="meta-llama/Llama-3.2-1B",  # 您的 vLLM 模型名稱
         base_url="http://localhost:8000/v1",  # 指向 vLLM server
         api_key="EMPTY",  # vLLM 不需要 key
     )
