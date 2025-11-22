@@ -17,6 +17,8 @@ from openai import OpenAI
 # Transformers for Embedding & Reranking
 from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification
 
+MAX_DOC_CHARS = 2000
+
 # --- 1. Retrieval Components (Embedding, Indexing, Reranking) ---
 
 
@@ -242,7 +244,7 @@ class LLMClient:
             return data["choices"][0]["message"]["content"]
 
         except Exception as e:
-            print("\n=== LLM Client Exception ===")
+          context_docs  print("\n=== LLM Client Exception ===")
             print(repr(e))
             print("=== End LLM Client Exception ===\n")
             return f"LLM Error (client-side): {e}"
@@ -305,7 +307,7 @@ class RAGPipeline:
         # A. Retrieve Context
         context_docs = self.retrieve(question, top_k=top_k)
         context_str = "\n\n".join(
-            [f"Doc [{d['id']}]: {d['text']}" for d in context_docs]
+            [f"Doc [{d['id']}]: {d['text'][:MAX_DOC_CHARS]}" for d in context_docs]
         )
 
         # B. Format Prompt

@@ -33,7 +33,7 @@ FALLBACK_ANSWER = "Unable to answer with confidence based on the provided docume
 # 讀 metadata.csv 建立 id -> url 映射
 META_PATH = DATA_DIR / "metadata.csv"
 meta_df = pd.read_csv(META_PATH, encoding="latin1")  # 和 data_preprocess 一致
-ID2URL = dict(zip(meta_df["id"], meta_df["url"]))    # 若實際欄位名不同再調整
+ID2URL = dict(zip(meta_df["id"], meta_df["url"]))  # 若實際欄位名不同再調整
 
 
 # ---------------------------------------------------------------------
@@ -91,6 +91,7 @@ def build_rag_pipeline():
     pipeline = RAGPipeline(embedder, vector_store, llm, bm25, reranker)
     return pipeline
 
+
 # ---------------------------------------------------------------------
 # 4. full_test：跑完整 test_Q.csv，產出 submission_full_test.csv
 # ---------------------------------------------------------------------
@@ -113,7 +114,7 @@ def run_full_test():
             system_prompt=SYS_PROMPT,
             template=USER_TEMPLATE,
             additional_info=meta,
-            top_k=5,
+            top_k=3,
         )
 
         raw_answer = result.get("answer", {})
@@ -205,15 +206,17 @@ def run_full_test():
 
     submission = pd.DataFrame(records)
     submission = submission[expected_columns]
-    submission = submission.fillna({
-        "answer": FALLBACK_ANSWER,
-        "answer_value": "is_blank",
-        "answer_unit": "is_blank",
-        "ref_id": "is_blank",
-        "ref_url": "is_blank",
-        "supporting_materials": "is_blank",
-        "explanation": "is_blank",
-    })
+    submission = submission.fillna(
+        {
+            "answer": FALLBACK_ANSWER,
+            "answer_value": "is_blank",
+            "answer_unit": "is_blank",
+            "ref_id": "is_blank",
+            "ref_url": "is_blank",
+            "supporting_materials": "is_blank",
+            "explanation": "is_blank",
+        }
+    )
 
     out_path = Path("./submission.csv")
     submission.to_csv(out_path, index=False)
@@ -234,7 +237,6 @@ def validate_submission_csv(path: Path, expected_columns):
     # 3. 筆數要等於 test 集大小（可選：用 test_q.shape[0] 傳進來檢查）
     print(f"Submission rows: {len(df)}")
     print(df.head(3))
-
 
 
 # ---------------------------------------------------------------------
