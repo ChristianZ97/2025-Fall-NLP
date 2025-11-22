@@ -17,7 +17,7 @@ from openai import OpenAI
 # Transformers for Embedding & Reranking
 from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification
 
-MAX_DOC_CHARS = 4096
+MAX_DOC_CHARS = 16384
 
 # --- 1. Retrieval Components (Embedding, Indexing, Reranking) ---
 
