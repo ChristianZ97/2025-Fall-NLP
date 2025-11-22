@@ -213,15 +213,13 @@ class LLMClient:
             "model": self.model_name,
             "messages": messages,
             "temperature": 0.7,
-            "max_tokens": 512,  # 明確給一個正整數，避免 max_tokens 計算成負數的 bug
-            "stream": False,  # 先關掉 streaming，簡化問題
+            #"max_tokens": 512,
+            "stream": False,
         }
 
         headers = {"Content-Type": "application/json"}
         if self.api_key:
-            headers["Authorization"] = (
-                f"Bearer {self.api_key}"  # 如果 vLLM 有設 --api-key
-            )
+            headers["Authorization"] = f"Bearer {self.api_key}"
 
         try:
             resp = requests.post(
@@ -230,12 +228,25 @@ class LLMClient:
                 data=json.dumps(payload),
                 timeout=180,
             )
+
+            # ★ 這裡就能看到 400 Bad Request 的完整內容
             if resp.status_code != 200:
+                print("\n=== LLM HTTP Error ===")
+                print(f"Status: {resp.status_code}")
+                print("Response body:")
+                print(resp.text[:2000])  # 可視需要截斷長度
+                print("=== End LLM HTTP Error ===\n")
                 return f"LLM Error: {resp.status_code} {resp.text}"
+
             data = resp.json()
             return data["choices"][0]["message"]["content"]
+
         except Exception as e:
+            print("\n=== LLM Client Exception ===")
+            print(repr(e))
+            print("=== End LLM Client Exception ===\n")
             return f"LLM Error (client-side): {e}"
+
 
 
 # --- 3. The RAG Pipeline ---
