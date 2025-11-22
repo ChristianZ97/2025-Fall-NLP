@@ -213,7 +213,7 @@ class LLMClient:
             "model": self.model_name,
             "messages": messages,
             "temperature": 0.7,
-            #"max_tokens": 512,
+            "max_tokens": 8192,
             "stream": False,
         }
 
