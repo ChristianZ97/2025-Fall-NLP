@@ -28,8 +28,8 @@ from pypdf.generic import DictionaryObject, IndirectObject
 # Local utilities for text splitting and payload types.
 # - split_paragraphs: split a long text into logical paragraphs.
 # - split_sentences: split paragraph text into sentence segments.
-from .text_utils import split_paragraphs, split_sentences
-from .types import (
+from text_utils import split_paragraphs, split_sentences
+from types import (
     DocumentPayload,
     ParagraphPayload,
     SectionPayload,
