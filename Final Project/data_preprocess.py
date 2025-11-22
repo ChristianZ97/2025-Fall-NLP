@@ -25,10 +25,7 @@ from pylatexenc.latexwalker import (
 from pypdf import PdfReader
 from pypdf.generic import DictionaryObject, IndirectObject
 
-# Local utilities for text splitting and payload types.
-# - split_paragraphs: split a long text into logical paragraphs.
-# - split_sentences: split paragraph text into sentence segments.
-from text_utils import split_paragraphs, split_sentences
+
 from types import (
     DocumentPayload,
     ParagraphPayload,
@@ -36,6 +33,29 @@ from types import (
     SentencePayload,
     payload_to_dict,
 )
+
+
+import re
+import nltk
+
+nltk.download("punkt")
+
+from nltk.tokenize import sent_tokenize
+
+
+def split_paragraphs(text: str) -> list[str]:
+    if not text:
+        return []
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    paragraphs = re.split(r"\n{2,}", text.strip())
+    return [p.strip() for p in paragraphs if p.strip()]
+
+
+def split_sentences(text: str) -> list[str]:
+    if not text:
+        return []
+    return [s.strip() for s in sent_tokenize(text)]
+
 
 # Global configuration defaults
 MODE = "tex"  # "tex" = parse LaTeX source, "pdf" = parse PDF text
