@@ -97,31 +97,39 @@ class EmbeddingModel:
         """
         return hashlib.md5(text.encode()).hexdigest()
 
-    def embed(self, texts: List[str]) -> np.ndarray:
+    def embed(
+        self,
+        texts: List[str],
+        batch_size: int = 16,
+        max_length: int = 512,
+    ) -> np.ndarray:
         """
-        Embed a list of texts into dense vectors, using cache when available.
-
-        Workflow
-        --------
-        1. For each text, look up its hash in the SQLite cache table.
-        2. If an embedding exists, load it via pickle.
-        3. For missing ones, batch-encode using the transformer model and store them.
+        Embed a list of texts into dense vectors, using an on-disk SQLite cache.
 
         Parameters
         ----------
         texts : List[str]
             List of raw text strings to embed.
+        batch_size : int, optional
+            Number of texts to encode per forward pass. Smaller values reduce
+            GPU memory usage at the cost of speed.
+        max_length : int, optional
+            Maximum number of tokens per text. Longer texts will be truncated
+            by the tokenizer. This helps control memory usage.
 
         Returns
         -------
         np.ndarray
             2D numpy array of shape (len(texts), embedding_dim) with dtype float32.
         """
-        embeddings: List[Optional[np.ndarray]] = []  # Placeholder for final embeddings
-        texts_to_compute: List[str] = []  # Texts that are not in cache
-        indices_to_compute: List[int] = []  # Their indices in the original list
+        # Placeholder list for final embeddings (some may be filled from cache).
+        embeddings: List[Optional[np.ndarray]] = [None] * len(texts)
 
-        # Step 1: check the cache for each text
+        # Lists to track which texts are missing from cache.
+        indices_to_compute: List[int] = []
+        texts_to_compute: List[str] = []
+
+        # Step 1: check the cache for each text.
         with sqlite3.connect(self.cache_db) as conn:
             cur = conn.cursor()
             for i, text in enumerate(texts):
@@ -129,46 +137,60 @@ class EmbeddingModel:
                 row = cur.execute(
                     "SELECT embedding FROM cache WHERE hash=?", (h,)
                 ).fetchone()
-                if row:
-                    # Cache hit: unpickle the stored embedding
-                    embeddings.append(pickle.loads(row[0]))
+                if row is not None:
+                    # Cache hit: unpickle stored embedding.
+                    embeddings[i] = pickle.loads(row[0])
                 else:
-                    # Cache miss: mark for computation
-                    embeddings.append(None)
-                    texts_to_compute.append(text)
+                    # Cache miss: remember index & text for later computation.
                     indices_to_compute.append(i)
+                    texts_to_compute.append(text)
 
-        # Step 2: compute embeddings for cache-miss texts
-        if texts_to_compute:
-            # Tokenize in batch, with padding and truncation to model's max length.
-            inputs = self.tokenizer(
-                texts_to_compute, return_tensors="pt", padding=True, truncation=True
-            ).to(self.device)
+        # Step 2: compute embeddings for cache-miss texts in mini-batches.
+        if indices_to_compute:
+            self.model.eval()
 
-            # Disable gradient computation for inference.
             with torch.no_grad():
-                # Here, a simple mean-pooling over the last hidden state is used.
-                # Depending on model, you might use a specialized pooling strategy.
-                out = (
-                    self.model(**inputs)
-                    .last_hidden_state.mean(dim=1)
-                    .cpu()
-                    .numpy()
-                    .astype("float32")
-                )
+                with sqlite3.connect(self.cache_db) as conn:
+                    for start in range(0, len(indices_to_compute), batch_size):
+                        end = start + batch_size
+                        batch_indices = indices_to_compute[start:end]
+                        batch_texts = [texts[i] for i in batch_indices]
 
-            # Step 3: store newly computed embeddings into cache and fill in 'embeddings'
-            with sqlite3.connect(self.cache_db) as conn:
-                for i, idx in enumerate(indices_to_compute):
-                    emb = out[i]
-                    embeddings[idx] = emb
-                    conn.execute(
-                        "INSERT OR REPLACE INTO cache VALUES (?,?)",
-                        (self._get_hash(texts_to_compute[i]), pickle.dumps(emb)),
-                    )
+                        # Tokenize this mini-batch with padding & truncation.
+                        inputs = self.tokenizer(
+                            batch_texts,
+                            return_tensors="pt",
+                            padding=True,
+                            truncation=True,
+                            max_length=max_length,
+                        ).to(self.device)
 
-        # At this point all entries in 'embeddings' are non-None
-        return np.array(embeddings)
+                        # Forward pass through the model.
+                        # Here we perform simple mean pooling over the last hidden state.
+                        outputs = self.model(**inputs)
+                        batch_embs = (
+                            outputs.last_hidden_state.mean(dim=1)
+                            .cpu()
+                            .numpy()
+                            .astype("float32")
+                        )
+
+                        # Store results in memory and in the SQLite cache.
+                        for local_idx, global_idx in enumerate(batch_indices):
+                            emb = batch_embs[local_idx]
+                            embeddings[global_idx] = emb
+                            h = self._get_hash(texts[global_idx])
+                            conn.execute(
+                                "INSERT OR REPLACE INTO cache VALUES (?, ?)",
+                                (h, pickle.dumps(emb)),
+                            )
+
+                        # Optional: free unused CUDA memory to reduce fragmentation.
+                        if self.device == "cuda":
+                            torch.cuda.empty_cache()
+
+        # At this point all entries in 'embeddings' should be non-None.
+        return np.stack(embeddings, axis=0).astype("float32")
 
 
 class VectorStore:
