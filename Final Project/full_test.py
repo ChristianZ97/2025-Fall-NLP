@@ -6,6 +6,7 @@ import pandas as pd
 import time
 from tqdm.auto import tqdm
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from rag_pipeline import (
     EmbeddingModel,
@@ -21,6 +22,9 @@ from prompts import SYS_PROMPT, USER_TEMPLATE
 # ---------------------------------------------------------------------
 # 0. 路徑設定（依你實際情況調整）
 # ---------------------------------------------------------------------
+
+MAX_NUM_SEQS = 12  # 可依實際 vLLM / GPU 設定調整
+
 DATA_DIR = Path("./data/WattBot2025")  # 和你 dummy code 一致
 DOC_DIR = DATA_DIR / "download" / "texts"  # data_preprocess.py 產出 .txt 的資料夾
 
@@ -96,18 +100,12 @@ def run_full_test():
     expected_columns = list(train_qa.columns)
 
     pipeline = build_rag_pipeline()
+    records = []
 
-    records = []  # 先放在 list，最後再組成 DataFrame
-
-    # 用 tqdm 包住 iterrows 顯示進度條
-    for idx, row in tqdm(
-        test_q.iterrows(),
-        total=len(test_q),
-        desc="Running full_test inference",
-    ):
+    # 把原本 for 迴圈裡的內容幾乎原封不動搬進來
+    def process_one(row, idx):
         question_id = row["id"]
         question = row["question"]
-
         meta = {"id": question_id}
 
         result = pipeline.run(
@@ -118,76 +116,57 @@ def run_full_test():
             top_k=5,
         )
 
-        # 安全解析：先統一成 dict
         raw_answer = result.get("answer", {})
         if isinstance(raw_answer, dict):
             parsed = raw_answer
         else:
-            # 若模型直接回傳字串或亂格式，就當作沒成功解析
             parsed = {}
 
         out = {}
         for col in expected_columns:
-
             if col == "id":
                 out[col] = question_id
-
             elif col == "question":
                 out[col] = question
-
             elif col == "answer":
-                # 保證是非空字串，否則用 FALLBACK_ANSWER
                 answer_text = parsed.get("answer")
                 if not isinstance(answer_text, str) or not answer_text.strip():
                     answer_text = FALLBACK_ANSWER
                 out[col] = answer_text
-
             elif col == "explanation":
                 expl_text = parsed.get("explanation")
                 if not isinstance(expl_text, str) or not expl_text.strip():
                     expl_text = "is_blank"
                 out[col] = expl_text
-
             elif col == "answer_value":
                 val = parsed.get("answer_value", "is_blank")
-                # 轉成字串比較穩：list -> JSON 字串, number/bool -> str(...)
                 if val is None or val == "":
                     out[col] = "is_blank"
                 else:
-                    # True/False 也可能出現，轉成 1/0 再轉字串
                     if isinstance(val, bool):
                         val = 1 if val else 0
                     if isinstance(val, (list, dict)):
                         out[col] = json.dumps(val, ensure_ascii=False)
                     else:
                         out[col] = str(val)
-
             elif col == "answer_unit":
                 unit = parsed.get("answer_unit", "is_blank")
                 if not isinstance(unit, str) or not unit.strip():
                     unit = "is_blank"
                 out[col] = unit
-
             elif col == "ref_id":
                 ref_ids = parsed.get("ref_id", [])
-                # 容錯：可能是字串或 list
                 if isinstance(ref_ids, str):
-                    # 允許 "a;b;c" 或 "a, b, c"
                     sep = ";" if ";" in ref_ids else ","
                     ref_ids = [x.strip() for x in ref_ids.split(sep)]
                 if not isinstance(ref_ids, list):
                     ref_ids = []
-                # 過濾空白，且只保留 metadata 裡存在的 id
                 ref_ids = [r for r in ref_ids if r and r in ID2URL]
-
                 if not ref_ids:
                     out[col] = "is_blank"
                 else:
-                    # Kaggle CSV 一般用分號串起來
                     out[col] = ";".join(ref_ids)
-
             elif col == "ref_url":
-                # 根據上一步的 ref_ids 來填 URL
                 ref_ids_cell = out.get("ref_id", "is_blank")
                 if ref_ids_cell == "is_blank":
                     out[col] = "is_blank"
@@ -195,29 +174,37 @@ def run_full_test():
                     ids = [x.strip() for x in ref_ids_cell.split(";") if x.strip()]
                     urls = [ID2URL.get(i, "") for i in ids if ID2URL.get(i, "")]
                     out[col] = ";".join(urls) if urls else "is_blank"
-
             elif col == "supporting_materials":
                 sup = parsed.get("supporting_materials", "is_blank")
                 if not isinstance(sup, str) or not sup.strip():
                     sup = "is_blank"
                 out[col] = sup
-
             else:
                 out[col] = "is_blank"
 
-        records.append(out)
-
-        # 只在前 3 題印出完整一列（所有 CSV 欄位）
+        # 只在前 3 題印出 sample（注意：是以 DataFrame 的 index 為準）
         if idx < 3:
             print(f"\n=== Sample #{idx} / id={question_id} ===")
             for c in expected_columns:
                 print(f"{c}: {out[c]}")
+        return out
 
-    # 組成 DataFrame 並確保欄位順序
+    # 平行跑所有 row
+    futures = []
+    with ThreadPoolExecutor(max_workers=MAX_NUM_SEQS) as executor:
+        for idx, (_, row) in enumerate(test_q.iterrows(), start=1):
+            futures.append(executor.submit(process_one, row, idx))
+
+        for fut in tqdm(
+            as_completed(futures),
+            total=len(futures),
+            desc="Running full_test inference (parallel)",
+        ):
+            out = fut.result()
+            records.append(out)
+
     submission = pd.DataFrame(records)
     submission = submission[expected_columns]
-
-    # 最終安全檢查：把所有可能的 NaN 補成字串
     submission = submission.fillna({
         "answer": FALLBACK_ANSWER,
         "answer_value": "is_blank",
@@ -231,6 +218,7 @@ def run_full_test():
     out_path = Path("./submission.csv")
     submission.to_csv(out_path, index=False)
     print("Saved full-test submission to", out_path)
+
     validate_submission_csv(out_path, expected_columns)
 
 

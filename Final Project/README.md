@@ -26,6 +26,14 @@ vllm serve "openai/gpt-oss-20b" \
   --gpu-memory-utilization 0.5 \
   --tensor-parallel-size 4 \
   --enforce-eager
+
+
+CUDA_VISIBLE_DEVICES=4,5,6,7 \
+vllm serve openai/gpt-oss-20b \
+  --tensor-parallel-size 4 \
+  --gpu-memory-utilization 0.80 \
+  --max-model-len 16384 \
+  --max-num-seqs 12 \
 ```
 
 ## Run RAG Pipeline
