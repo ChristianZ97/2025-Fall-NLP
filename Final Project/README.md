@@ -23,17 +23,20 @@ python data_preprocess.py
 ```bash
 CUDA_VISIBLE_DEVICES=4,5,6,7 \
 vllm serve "openai/gpt-oss-20b" \
-  --gpu-memory-utilization 0.5 \
-  --tensor-parallel-size 4 \
-  --enforce-eager
-
-
-CUDA_VISIBLE_DEVICES=4,5,6,7 \
-vllm serve openai/gpt-oss-20b \
   --tensor-parallel-size 4 \
   --gpu-memory-utilization 0.80 \
   --max-model-len 16384 \
   --max-num-seqs 12 \
+
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+vllm serve "openai/gpt-oss-120b" \
+--tensor-parallel-size 8 \
+--gpu-memory-utilization 0.70 \
+--max-model-len 32768 \
+--swap-space 16 \
+--max-num-batched-tokens 32768 \
+--max-num-seqs 4 \
+--dtype bfloat16 \
 ```
 
 ## Run RAG Pipeline
