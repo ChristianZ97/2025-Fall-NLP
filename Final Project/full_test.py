@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import time
 from tqdm.auto import tqdm
+import json
 
 from rag_pipeline import (
     EmbeddingModel,
@@ -24,6 +25,11 @@ DATA_DIR = Path("./data/WattBot2025")  # 和你 dummy code 一致
 DOC_DIR = DATA_DIR / "download" / "texts"  # data_preprocess.py 產出 .txt 的資料夾
 
 FALLBACK_ANSWER = "Unable to answer with confidence based on the provided documents."
+
+# 讀 metadata.csv 建立 id -> url 映射
+META_PATH = DATA_DIR / "metadata.csv"
+meta_df = pd.read_csv(META_PATH, encoding="latin1")  # 和 data_preprocess 一致
+ID2URL = dict(zip(meta_df["id"], meta_df["url"]))    # 若實際欄位名不同再調整
 
 
 # ---------------------------------------------------------------------
@@ -93,7 +99,12 @@ def run_full_test():
 
     records = []  # 先放在 list，最後再組成 DataFrame
 
-    for idx, row in test_q.iterrows():
+    # 用 tqdm 包住 iterrows 顯示進度條
+    for idx, row in tqdm(
+        test_q.iterrows(),
+        total=len(test_q),
+        desc="Running full_test inference",
+    ):
         question_id = row["id"]
         question = row["question"]
 
@@ -117,42 +128,90 @@ def run_full_test():
 
         out = {}
         for col in expected_columns:
+
             if col == "id":
                 out[col] = question_id
+
             elif col == "question":
                 out[col] = question
+
             elif col == "answer":
                 # 保證是非空字串，否則用 FALLBACK_ANSWER
                 answer_text = parsed.get("answer")
                 if not isinstance(answer_text, str) or not answer_text.strip():
                     answer_text = FALLBACK_ANSWER
                 out[col] = answer_text
+
             elif col == "explanation":
                 expl_text = parsed.get("explanation")
                 if not isinstance(expl_text, str) or not expl_text.strip():
                     expl_text = "is_blank"
                 out[col] = expl_text
-            elif col in [
-                "answer_value",
-                "answer_unit",
-                "ref_id",
-                "ref_url",
-                "supporting_materials",
-            ]:
-                out[col] = "is_blank"
+
+            elif col == "answer_value":
+                val = parsed.get("answer_value", "is_blank")
+                # 轉成字串比較穩：list -> JSON 字串, number/bool -> str(...)
+                if val is None or val == "":
+                    out[col] = "is_blank"
+                else:
+                    # True/False 也可能出現，轉成 1/0 再轉字串
+                    if isinstance(val, bool):
+                        val = 1 if val else 0
+                    if isinstance(val, (list, dict)):
+                        out[col] = json.dumps(val, ensure_ascii=False)
+                    else:
+                        out[col] = str(val)
+
+            elif col == "answer_unit":
+                unit = parsed.get("answer_unit", "is_blank")
+                if not isinstance(unit, str) or not unit.strip():
+                    unit = "is_blank"
+                out[col] = unit
+
+            elif col == "ref_id":
+                ref_ids = parsed.get("ref_id", [])
+                # 容錯：可能是字串或 list
+                if isinstance(ref_ids, str):
+                    # 允許 "a;b;c" 或 "a, b, c"
+                    sep = ";" if ";" in ref_ids else ","
+                    ref_ids = [x.strip() for x in ref_ids.split(sep)]
+                if not isinstance(ref_ids, list):
+                    ref_ids = []
+                # 過濾空白，且只保留 metadata 裡存在的 id
+                ref_ids = [r for r in ref_ids if r and r in ID2URL]
+
+                if not ref_ids:
+                    out[col] = "is_blank"
+                else:
+                    # Kaggle CSV 一般用分號串起來
+                    out[col] = ";".join(ref_ids)
+
+            elif col == "ref_url":
+                # 根據上一步的 ref_ids 來填 URL
+                ref_ids_cell = out.get("ref_id", "is_blank")
+                if ref_ids_cell == "is_blank":
+                    out[col] = "is_blank"
+                else:
+                    ids = [x.strip() for x in ref_ids_cell.split(";") if x.strip()]
+                    urls = [ID2URL.get(i, "") for i in ids if ID2URL.get(i, "")]
+                    out[col] = ";".join(urls) if urls else "is_blank"
+
+            elif col == "supporting_materials":
+                sup = parsed.get("supporting_materials", "is_blank")
+                if not isinstance(sup, str) or not sup.strip():
+                    sup = "is_blank"
+                out[col] = sup
+
             else:
                 out[col] = "is_blank"
 
-        # 每隔 N 筆印一次，確認回應正常
-        N = 20  # 例如每 20 題看一次
-        if (idx % N) == 0:
-            print(f"\n=== Sample #{idx} / id={question_id} ===")
-            print("Q:", question)
-            print("Model answer:", out["answer"])
-            print("Explanation:", out["explanation"])
-
         records.append(out)
 
+        # 只在前 3 題印出完整一列（所有 CSV 欄位）
+        if idx < 3:
+            print(f"\n=== Sample #{idx} / id={question_id} ===")
+            for c in expected_columns:
+                print(f"{c}: {out[c]}")
 
     # 組成 DataFrame 並確保欄位順序
     submission = pd.DataFrame(records)

@@ -60,10 +60,9 @@ Field definitions
 - If you abstain because the answer cannot be found, you may return an empty list [].
 
 5. "ref_url" (supporting document URLs)
-- One or more URLs corresponding to the cited "ref_id" entries.
-- These URLs must come from the provided Metadata.
-- Return this as a JSON list of strings, in the same order and length as "ref_id".
-- If you abstain, you may return an empty list [].
+- Always output an empty JSON list: [].
+- Do not guess or fabricate URLs.
+- URLs will be populated later by an external script based on "ref_id".
 
 6. "supporting_materials" (verbatim justification)
 - Provide verbatim supporting evidence from the Context, such as:
