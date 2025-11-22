@@ -26,7 +26,7 @@ from pypdf import PdfReader
 from pypdf.generic import DictionaryObject, IndirectObject
 
 
-from types import (
+from payload_types import (
     DocumentPayload,
     ParagraphPayload,
     SectionPayload,
