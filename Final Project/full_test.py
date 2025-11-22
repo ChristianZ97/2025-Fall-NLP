@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 import pandas as pd
 import time
+from tqdm.auto import tqdm
+
 from rag_pipeline import (
     EmbeddingModel,
     VectorStore,
@@ -12,8 +14,8 @@ from rag_pipeline import (
     LLMClient,
     RAGPipeline,
 )
-from tqdm.auto import tqdm
 
+from prompts import SYS_PROMPT, USER_TEMPLATE
 
 # ---------------------------------------------------------------------
 # 0. 路徑設定（依你實際情況調整）
@@ -78,24 +80,6 @@ def build_rag_pipeline():
 
     pipeline = RAGPipeline(embedder, vector_store, llm, bm25, reranker)
     return pipeline
-
-
-# ---------------------------------------------------------------------
-# 3. 定義 system_prompt 與 template
-#    （沿用你原本只輸出 answer + explanation 的 JSON）
-# ---------------------------------------------------------------------
-SYS_PROMPT = "You are a helpful physics assistant for the WattBot 2025 challenge. Respond in JSON format."
-
-USER_TEMPLATE = """
-Question: {question}
-
-Context:
-{context}
-
-Metadata: {additional_info}
-
-Answer in JSON format containing 'answer' and 'explanation'.
-"""
 
 # ---------------------------------------------------------------------
 # 4. full_test：跑完整 test_Q.csv，產出 submission_full_test.csv
