@@ -114,7 +114,7 @@ def run_full_test():
             system_prompt=SYS_PROMPT,
             template=USER_TEMPLATE,
             additional_info=meta,
-            top_k=3,
+            top_k=5,
         )
 
         raw_answer = result.get("answer", {})
@@ -185,9 +185,11 @@ def run_full_test():
 
         # 只在前 3 題印出 sample（注意：是以 DataFrame 的 index 為準）
         if idx < 3:
+            print("\n")
             print(f"\n=== Sample #{idx} / id={question_id} ===")
             for c in expected_columns:
                 print(f"{c}: {out[c]}")
+            print("\n")
         return out
 
     # 平行跑所有 row
