@@ -28,9 +28,9 @@ vllm serve "openai/gpt-oss-20b" \
   --max-model-len 16384 \
   --max-num-seqs 12 \
 
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+CUDA_VISIBLE_DEVICES=1,2,3,4,5,6,7 \
 vllm serve "openai/gpt-oss-120b" \
---tensor-parallel-size 8 \
+--tensor-parallel-size 7 \
 --gpu-memory-utilization 0.70 \
 --max-model-len 32768 \
 --swap-space 16 \
