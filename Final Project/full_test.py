@@ -23,7 +23,7 @@ from prompts import SYS_PROMPT, USER_TEMPLATE
 # 0. 路徑設定（依你實際情況調整）
 # ---------------------------------------------------------------------
 
-MAX_NUM_SEQS = 8  # 可依實際 vLLM / GPU 設定調整
+MAX_NUM_SEQS = 4  # 可依實際 vLLM / GPU 設定調整
 
 DATA_DIR = Path("./data/WattBot2025")  # 和你 dummy code 一致
 DOC_DIR = DATA_DIR / "download" / "texts"  # data_preprocess.py 產出 .txt 的資料夾
