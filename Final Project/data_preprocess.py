@@ -50,7 +50,6 @@ DOWNLOAD_SOURCE = True  # Whether to download LaTeX source tarballs
 PDF_LIMIT = None  # If set to an int, stop after processing this many PDFs
 
 
-
 def split_paragraphs(text: str) -> list[str]:
     if not text:
         return []
@@ -63,6 +62,7 @@ def split_sentences(text: str) -> list[str]:
     if not text:
         return []
     return [s.strip() for s in sent_tokenize(text)]
+
 
 class ArxivDownloader:
     """

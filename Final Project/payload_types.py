@@ -1,15 +1,18 @@
 # payload_types.py
 
 from __future__ import annotations
+
 # Enables postponed evaluation of type annotations.
 # This allows the use of types that are defined later in the file
 # or forward references without using string literals for type hints.
 
 from dataclasses import dataclass, asdict
+
 # dataclass: Decorator to automatically generate __init__, __repr__, etc., for classes.
 # asdict: Utility to convert a dataclass instance (recursively) into a dictionary.
 
 from typing import Any, Dict, List, Optional
+
 # Any: Type that can hold any Python object.
 # Dict: Dictionary type with specified key/value types.
 # List: List type with specified element type.
@@ -26,6 +29,7 @@ class SentencePayload:
     text : str
         The raw text content of the sentence.
     """
+
     text: str
 
 
@@ -46,6 +50,7 @@ class ParagraphPayload:
         A dictionary for arbitrary key-value metadata associated with this paragraph.
         This can be used to store page numbers, styling info, source references, etc.
     """
+
     text: str
     sentences: Optional[List[SentencePayload]] = None
     # Default is None, meaning that sentence-level segmentation might not be provided.
@@ -80,6 +85,7 @@ class SectionPayload:
     metadata : Dict[str, Any]
         Arbitrary metadata for the section (e.g., section number, tags, etc.).
     """
+
     title: str
     paragraphs: List[ParagraphPayload]
     # A section must contain one or more paragraphs.
@@ -119,6 +125,7 @@ class DocumentPayload:
         further structure. If None, the document may be represented only by
         the 'text' field without explicit structural segmentation.
     """
+
     document_id: str
     title: str
     text: str
