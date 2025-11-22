@@ -25,17 +25,8 @@ CUDA_VISIBLE_DEVICES=4,5,6,7 \
 vllm serve "openai/gpt-oss-20b" \
   --tensor-parallel-size 4 \
   --gpu-memory-utilization 0.80 \
-  --max-model-len 16384 \
+  --max-model-len 32768 \
   --max-num-seqs 12 \
-
-vllm serve "openai/gpt-oss-120b" \
---tensor-parallel-size 8 \
---gpu-memory-utilization 0.70 \
---max-model-len 32768 \
---swap-space 16 \
---max-num-batched-tokens 32768 \
---max-num-seqs 4 \
---dtype bfloat16 \
 ```
 
 ## Run RAG Pipeline
