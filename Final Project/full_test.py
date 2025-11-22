@@ -253,7 +253,7 @@ def run_full_test():
             system_prompt=SYS_PROMPT,
             template=USER_TEMPLATE,
             additional_info=meta,
-            top_k=5,
+            top_k=20,
         )
 
         # 'answer' field of result is expected to be a dict (parsed JSON) or error

@@ -10,6 +10,7 @@ Original file is located at
 # IMPORTANT: SOME KAGGLE DATA SOURCES ARE PRIVATE
 # RUN THIS CELL IN ORDER TO IMPORT YOUR KAGGLE DATA SOURCES.
 import kagglehub
+
 kagglehub.login()
 
 # IMPORTANT: RUN THIS CELL IN ORDER TO IMPORT YOUR KAGGLE DATA SOURCES,
@@ -18,9 +19,9 @@ kagglehub.login()
 # ENVIRONMENT SO THERE MAY BE MISSING LIBRARIES USED BY YOUR
 # NOTEBOOK.
 
-wattbot2025_path = kagglehub.competition_download('WattBot2025')
+wattbot2025_path = kagglehub.competition_download("WattBot2025")
 
-print('Data source import complete.')
+print("Data source import complete.")
 
 """I am sincerely grateful to the classmate whose code provided invaluable reference. If my publicly shared notebook inadvertently causes any issues, I am DEEPLY SORRY for any inconvenience caused. 😔
 
@@ -30,9 +31,9 @@ With the original author's kind permission, I have referenced code from KoHaKu-L
 Code from https://github.com/KohakuBlueleaf/KohakuRAG
 """
 
-!nvidia-smi
-!nvcc --version
-!pip install openai rank_bm25 sentence-transformers transformers[torch] faiss-cpu
+#!nvidia-smi
+#!nvcc --version
+#!pip install openai rank_bm25 sentence-transformers transformers[torch] faiss-cpu
 
 import os
 
@@ -43,6 +44,7 @@ dirs
 import pandas as pd
 
 base = "/kaggle/input/WattBot2025"
+
 
 def smart_read_csv(path):
     encodings = ["utf-8", "latin1", "ISO-8859-1", "cp1252"]
@@ -60,11 +62,16 @@ meta_df = smart_read_csv(f"{base}/metadata.csv")
 
 train_df.head(), test_df.head(), meta_df.head()
 
+
 def load_metadata(path: Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8", errors="replace") as f:
         return list(csv.DictReader(f))
+
+
 def clean_url(url: str) -> str:
     return (url or "").strip()
+
+
 def is_pdf_url(url: str) -> bool:
     cleaned = clean_url(url)
     if not cleaned:
@@ -130,9 +137,7 @@ for row in rows:
 
     if not is_pdf_url(url) and not has_pdf_mime(url):
         skipped += 1
-        print(
-            f"[skip] {doc_id}: URL does not look like PDF ({url})", file=sys.stderr
-        )
+        print(f"[skip] {doc_id}: URL does not look like PDF ({url})", file=sys.stderr)
         continue
 
     pdf_path = args.pdf_dir / f"{doc_id}.pdf"
@@ -193,6 +198,8 @@ from .types import (
     SectionPayload,
     SentencePayload,
 )
+
+
 def _resolve(obj):
     return obj.get_object() if isinstance(obj, IndirectObject) else obj
 
@@ -310,6 +317,7 @@ def pdf_to_markdown(
             lines.append("")
     return "\n".join(lines)
 
+
 import json
 import sqlite3
 import hashlib
@@ -322,12 +330,16 @@ from typing import List, Dict, Any
 from rank_bm25 import BM25Okapi
 from transformers import AutoModel, AutoTokenizer
 from transformers import AutoModelForSequenceClassification
+
 # Embedding Model (chache)
 os.environ["HF_HUB_ENABLE_HF_CONTRIBUTIONS"] = "1"
 
+
 class EmbeddingModel:
     def __init__(self, model_name="jinaai/jina-embeddings-v3"):
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name, trust_remote_code=True
+        )
         self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
 
         # Optional: Move model to GPU if available for faster inference
@@ -339,12 +351,14 @@ class EmbeddingModel:
 
     def _init_cache(self):
         conn = sqlite3.connect(self.cache_db)
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS cache (
                 hash TEXT PRIMARY KEY,
                 embedding BLOB
             )
-        """)
+        """
+        )
         conn.commit()
         conn.close()
 
@@ -358,7 +372,9 @@ class EmbeddingModel:
 
         for t in texts:
             key = self._hash(t)
-            row = cur.execute("SELECT embedding FROM cache WHERE hash=?", (key,)).fetchone()
+            row = cur.execute(
+                "SELECT embedding FROM cache WHERE hash=?", (key,)
+            ).fetchone()
 
             if row:  # HIT
                 emb = pickle.loads(row[0])
@@ -376,12 +392,15 @@ class EmbeddingModel:
                 # Convert to float32 before calling .numpy()
                 h = h.cpu().to(torch.float32).numpy()
 
-            cur.execute("INSERT OR REPLACE INTO cache VALUES (?,?)", (key, pickle.dumps(h)))
+            cur.execute(
+                "INSERT OR REPLACE INTO cache VALUES (?,?)", (key, pickle.dumps(h))
+            )
             out.append(h)
 
         conn.commit()
         conn.close()
         return out
+
 
 class FaissCPUIndex:
     def __init__(self, dim=1024, nlist=1, m=8):
@@ -421,7 +440,8 @@ class FaissCPUIndex:
         scores, I = self.index.search(query_emb, topk)
         return [
             (self.doc_ids[i], self.doc_texts[i], float(scores[0][j]))
-            for j, i in enumerate(I[0]) if i >= 0
+            for j, i in enumerate(I[0])
+            if i >= 0
         ]
 
 
@@ -449,23 +469,27 @@ class Reranker:
         tok = self.tokenizer(
             [p[0] for p in pairs],
             [p[1] for p in pairs],
-            return_tensors='pt',
+            return_tensors="pt",
             truncation=True,
-            padding=True
+            padding=True,
         )
         with torch.no_grad():
             scores = self.model(**tok).logits.squeeze().numpy()
 
         ranked = sorted(
-            [{"id": c["id"], "text": c["text"], "score": float(s)}
-             for c, s in zip(candidates, scores)],
-            key=lambda x: -x["score"]
+            [
+                {"id": c["id"], "text": c["text"], "score": float(s)}
+                for c, s in zip(candidates, scores)
+            ],
+            key=lambda x: -x["score"],
         )
         return ranked[:topk]
 
 
 # LLM Wrapper (OpenAI Compatible)
 from openai import OpenAI
+
+
 class ChatModel:
     def __init__(self, model="gpt-4o-mini", system_prompt=""):
         self.client = OpenAI()
@@ -475,21 +499,22 @@ class ChatModel:
     def complete(self, prompt):
         msg = self.client.chat.completions.create(
             model=self.model,
-            messages=[{"role":"system","content":self.system_prompt},
-                      {"role":"user","content":prompt}]
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": prompt},
+            ],
         )
         return msg.choices[0].message.content
 
 
 # Main RAG Pipeline
 class RAGPipeline:
-    def __init__(self, store, embedder, chat_model,
-                 bm25=None, reranker=None):
-        self.store = store          # FaissGPUIndex
-        self.embedder = embedder    # EmbeddingModel
-        self.chat = chat_model      # ChatModel
-        self.bm25 = bm25            # BM25Retriever
-        self.reranker = reranker    # Reranker
+    def __init__(self, store, embedder, chat_model, bm25=None, reranker=None):
+        self.store = store  # FaissGPUIndex
+        self.embedder = embedder  # EmbeddingModel
+        self.chat = chat_model  # ChatModel
+        self.bm25 = bm25  # BM25Retriever
+        self.reranker = reranker  # Reranker
 
     def retrieve(self, question, topk=10):
         emb = self.embedder.embed([question])[0]
@@ -520,29 +545,31 @@ class RAGPipeline:
         user_prompt = user_template.format(
             question=question,
             context=context,
-            additional_info_json=json.dumps(additional_info)
+            additional_info_json=json.dumps(additional_info),
         )
 
         raw = self.chat.complete(user_prompt)
 
         try:
-            structured = json.loads(raw[raw.index('{'):raw.rindex('}')+1])
+            structured = json.loads(raw[raw.index("{") : raw.rindex("}") + 1])
         except:
             structured = {
-                "answer":"is_blank",
-                "answer_value":"is_blank",
-                "ref_id":"is_blank",
-                "explanation":"is_blank"
+                "answer": "is_blank",
+                "answer_value": "is_blank",
+                "ref_id": "is_blank",
+                "explanation": "is_blank",
             }
 
         # 模拟 KohakuRAG 的标准输出格式
-        return type("QAResult", (), {
-            "answer": structured,
-            "raw_response": raw,
-            "prompt": user_prompt
-        })
+        return type(
+            "QAResult",
+            (),
+            {"answer": structured, "raw_response": raw, "prompt": user_prompt},
+        )
 
-#pipeline
+
+# pipeline
+
 
 def build_pipeline(docs: List[str], ids: List[str]):
     embedder = EmbeddingModel()
@@ -564,9 +591,10 @@ def build_pipeline(docs: List[str], ids: List[str]):
         embedder=embedder,
         chat_model=chat,
         bm25=bm25,
-        reranker=reranker
+        reranker=reranker,
     )
     return pipeline
+
 
 import faiss
 
@@ -574,17 +602,19 @@ print("FAISS version:", faiss.__version__)
 print("Has GPU module:", hasattr(faiss, "GpuIndexFlatL2"))
 print("Available attributes:", [a for a in dir(faiss) if "Gpu" in a])
 
-#buld up these parts and test
-docs = ["Solar panel efficiency depends on irradiance.",
-        "Wind turbines convert kinetic energy to electricity."]
-ids = ["doc1","doc2"]
+# buld up these parts and test
+docs = [
+    "Solar panel efficiency depends on irradiance.",
+    "Wind turbines convert kinetic energy to electricity.",
+]
+ids = ["doc1", "doc2"]
 
 pipeline = build_pipeline(docs, ids)
 qa = pipeline.run_qa(
     question="What affects solar panel efficiency?",
     system_prompt="You are helpful.",
     user_template="Q: {question}\nContext:\n{context}\n\nA:",
-    additional_info={"answer_unit":""},
-    top_k=5
+    additional_info={"answer_unit": ""},
+    top_k=5,
 )
 print(qa.answer)
