@@ -38,9 +38,17 @@ from payload_types import (
 import re
 import nltk
 
-nltk.download("punkt")
+nltk.download("punkt_tab")
 
 from nltk.tokenize import sent_tokenize
+
+
+# Global configuration defaults
+MODE = "pdf"  # "tex" = parse LaTeX source, "pdf" = parse PDF text
+DOWNLOAD_PDF = True  # Whether to download PDFs
+DOWNLOAD_SOURCE = True  # Whether to download LaTeX source tarballs
+PDF_LIMIT = None  # If set to an int, stop after processing this many PDFs
+
 
 
 def split_paragraphs(text: str) -> list[str]:
@@ -55,14 +63,6 @@ def split_sentences(text: str) -> list[str]:
     if not text:
         return []
     return [s.strip() for s in sent_tokenize(text)]
-
-
-# Global configuration defaults
-MODE = "tex"  # "tex" = parse LaTeX source, "pdf" = parse PDF text
-DOWNLOAD_PDF = True  # Whether to download PDFs
-DOWNLOAD_SOURCE = True  # Whether to download LaTeX source tarballs
-PDF_LIMIT = None  # If set to an int, stop after processing this many PDFs
-
 
 class ArxivDownloader:
     """
