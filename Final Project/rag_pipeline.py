@@ -244,11 +244,10 @@ class LLMClient:
             return data["choices"][0]["message"]["content"]
 
         except Exception as e:
-          context_docs  print("\n=== LLM Client Exception ===")
+            print("\n=== LLM Client Exception ===")
             print(repr(e))
             print("=== End LLM Client Exception ===\n")
             return f"LLM Error (client-side): {e}"
-
 
 
 # --- 3. The RAG Pipeline ---
