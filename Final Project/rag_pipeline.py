@@ -1,3 +1,5 @@
+# rag_pipeline.py
+
 import os
 import json
 import pickle
@@ -5,26 +7,31 @@ import sqlite3
 import hashlib
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-import requests
 
+import requests
 
 import torch
 import numpy as np
 import faiss
 from rank_bm25 import BM25Okapi
-from openai import OpenAI
+from openai import OpenAI  # Note: imported but not used directly in this file.
 
-# Transformers for Embedding & Reranking
 from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification
 
+# Maximum number of characters from each retrieved document to feed into the LLM.
+# This prevents extremely long contexts that might exceed model limits or waste tokens.
 MAX_DOC_CHARS = 16384
-
-# --- 1. Retrieval Components (Embedding, Indexing, Reranking) ---
 
 
 class EmbeddingModel:
     """
-    負責將文字轉換為向量。使用 SQLite 快取以避免重複計算。
+    Wrapper around a Hugging Face embedding model with an on-disk SQLite cache.
+
+    Features
+    --------
+    - Uses a transformer model (e.g., jinaai/jina-embeddings-v3) to generate embeddings.
+    - Maintains an SQLite database to cache embeddings and avoid recomputation.
+    - Supports batch embedding of multiple texts.
     """
 
     def __init__(
@@ -32,33 +39,89 @@ class EmbeddingModel:
         model_name: str = "jinaai/jina-embeddings-v3",
         cache_path: str = "embed_cache.db",
     ):
+        """
+        Initialize the embedding model and its cache.
+
+        Parameters
+        ----------
+        model_name : str
+            Name of the Hugging Face model to load.
+        cache_path : str
+            Path to the SQLite database used to cache embeddings.
+        """
+        # Use GPU if available, else default to CPU.
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"Loading Embedding Model: {model_name} on {self.device}...")
 
+        # Load tokenizer and model; trust_remote_code allows custom model implementations.
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True
         )
         self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True).to(
             self.device
         )
+
+        # Path (file name) for SQLite caching database.
         self.cache_db = cache_path
         self._init_cache()
 
-    def _init_cache(self):
+    def _init_cache(self) -> None:
+        """
+        Initialize the SQLite cache table if it does not exist.
+
+        Table schema
+        ------------
+        cache(
+            hash TEXT PRIMARY KEY,  -- MD5 hash of the text
+            embedding BLOB          -- Pickled numpy array
+        )
+        """
         with sqlite3.connect(self.cache_db) as conn:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS cache (hash TEXT PRIMARY KEY, embedding BLOB)"
             )
 
     def _get_hash(self, text: str) -> str:
+        """
+        Compute a stable hash for a piece of text, used as the cache key.
+
+        Parameters
+        ----------
+        text : str
+            Input text.
+
+        Returns
+        -------
+        str
+            Hex-encoded MD5 hash of the text.
+        """
         return hashlib.md5(text.encode()).hexdigest()
 
     def embed(self, texts: List[str]) -> np.ndarray:
-        embeddings = []
-        texts_to_compute = []
-        indices_to_compute = []
+        """
+        Embed a list of texts into dense vectors, using cache when available.
 
-        # 1. Check Cache
+        Workflow
+        --------
+        1. For each text, look up its hash in the SQLite cache table.
+        2. If an embedding exists, load it via pickle.
+        3. For missing ones, batch-encode using the transformer model and store them.
+
+        Parameters
+        ----------
+        texts : List[str]
+            List of raw text strings to embed.
+
+        Returns
+        -------
+        np.ndarray
+            2D numpy array of shape (len(texts), embedding_dim) with dtype float32.
+        """
+        embeddings: List[Optional[np.ndarray]] = []  # Placeholder for final embeddings
+        texts_to_compute: List[str] = []  # Texts that are not in cache
+        indices_to_compute: List[int] = []  # Their indices in the original list
+
+        # Step 1: check the cache for each text
         with sqlite3.connect(self.cache_db) as conn:
             cur = conn.cursor()
             for i, text in enumerate(texts):
@@ -67,19 +130,25 @@ class EmbeddingModel:
                     "SELECT embedding FROM cache WHERE hash=?", (h,)
                 ).fetchone()
                 if row:
+                    # Cache hit: unpickle the stored embedding
                     embeddings.append(pickle.loads(row[0]))
                 else:
-                    embeddings.append(None)  # Placeholder
+                    # Cache miss: mark for computation
+                    embeddings.append(None)
                     texts_to_compute.append(text)
                     indices_to_compute.append(i)
 
-        # 2. Compute Misses
+        # Step 2: compute embeddings for cache-miss texts
         if texts_to_compute:
+            # Tokenize in batch, with padding and truncation to model's max length.
             inputs = self.tokenizer(
                 texts_to_compute, return_tensors="pt", padding=True, truncation=True
             ).to(self.device)
+
+            # Disable gradient computation for inference.
             with torch.no_grad():
-                # Mean pooling
+                # Here, a simple mean-pooling over the last hidden state is used.
+                # Depending on model, you might use a specialized pooling strategy.
                 out = (
                     self.model(**inputs)
                     .last_hidden_state.mean(dim=1)
@@ -88,7 +157,7 @@ class EmbeddingModel:
                     .astype("float32")
                 )
 
-            # 3. Update Cache & Result List
+            # Step 3: store newly computed embeddings into cache and fill in 'embeddings'
             with sqlite3.connect(self.cache_db) as conn:
                 for i, idx in enumerate(indices_to_compute):
                     emb = out[i]
@@ -98,36 +167,95 @@ class EmbeddingModel:
                         (self._get_hash(texts_to_compute[i]), pickle.dumps(emb)),
                     )
 
+        # At this point all entries in 'embeddings' are non-None
         return np.array(embeddings)
 
 
 class VectorStore:
     """
-    使用 Faiss 進行向量檢索 (IVF-PQ for efficiency)。
+    Simple FAISS-based vector store using L2 similarity (IndexFlatL2).
+
+    Features
+    --------
+    - Stores vectors in a FAISS index for efficient similarity search.
+    - Maintains a parallel Python list 'doc_map' to map from FAISS index positions
+      back to document IDs and text.
     """
 
     def __init__(self, dim: int = 1024):
+        """
+        Parameters
+        ----------
+        dim : int
+            Dimensionality of the embeddings.
+            Must match the output dimension of the embedding model.
+        """
         self.dim = dim
-        # 簡單起見使用 IndexFlatL2 (若資料量大可改用 IndexIVFFlat)
+        # IndexFlatL2 is a basic, non-compressed, exact L2-distance index.
         self.index = faiss.IndexFlatL2(dim)
-        self.doc_map = []  # Map index ID to (doc_id, text)
+        # doc_map[i] stores metadata for the vector at position i in the FAISS index.
+        self.doc_map: List[Dict[str, Any]] = []
 
-    def add(self, embeddings: np.ndarray, doc_ids: List[str], texts: List[str]):
+    def add(self, embeddings: np.ndarray, doc_ids: List[str], texts: List[str]) -> None:
+        """
+        Add new vectors and their metadata to the vector store.
+
+        Parameters
+        ----------
+        embeddings : np.ndarray
+            Embedding matrix of shape (n, dim).
+        doc_ids : List[str]
+            Identifiers for each embedding (one per row).
+        texts : List[str]
+            Original text corresponding to each embedding.
+        """
+        # Sanity check: dimension must match index dimension.
         if embeddings.shape[1] != self.dim:
             raise ValueError(
                 f"Embedding dim {embeddings.shape[1]} != Index dim {self.dim}"
             )
 
+        # Add embeddings to FAISS index (in memory).
         self.index.add(embeddings)
+
+        # Add metadata entries in the parallel Python list.
         for did, txt in zip(doc_ids, texts):
-            self.doc_map.append({"id": did, "text": txt})
+            # 'base_id' strips off any fragment after '#', if present.
+            base_id = did.split("#", 1)[0]
+            self.doc_map.append(
+                {
+                    "id": did,  # Possibly includes section or chunk info.
+                    "doc_id": base_id,  # Base document ID (without fragment).
+                    "text": txt,  # Raw text content.
+                }
+            )
 
     def search(self, query_emb: np.ndarray, top_k: int = 10) -> List[Dict]:
+        """
+        Perform a vector similarity search against the FAISS index.
+
+        Parameters
+        ----------
+        query_emb : np.ndarray
+            1D embedding vector representing the query (shape: (dim,)).
+        top_k : int
+            Maximum number of results to return.
+
+        Returns
+        -------
+        List[Dict]
+            List of document metadata dicts, each augmented with a 'score' field
+            representing the L2 distance (lower is more similar).
+        """
+        # FAISS expects a 2D array; reshape the query to (1, dim).
         scores, indices = self.index.search(query_emb.reshape(1, -1), top_k)
-        results = []
+
+        results: List[Dict[str, Any]] = []
         for score, idx in zip(scores[0], indices[0]):
+            # FAISS returns -1 for invalid entries if fewer vectors are in the index.
             if idx != -1:
                 doc = self.doc_map[idx].copy()
+                # Score is the L2 distance; lower means closer. Consumers may want to invert.
                 doc["score"] = float(score)
                 results.append(doc)
         return results
@@ -135,19 +263,60 @@ class VectorStore:
 
 class KeywordRetriever:
     """
-    傳統關鍵字檢索 (BM25)。
+    Classic keyword-based retriever using BM25Okapi.
+
+    Intended to complement vector retrieval with lexical matching.
+
+    Attributes
+    ----------
+    bm25 : BM25Okapi
+        Underlying BM25 model over the tokenized corpus.
+    doc_ids : List[str]
+        IDs corresponding to indexed texts.
+    texts : List[str]
+        Original documents.
     """
 
     def __init__(self, texts: List[str], doc_ids: List[str]):
-        tokenized_corpus = [
-            text.split() for text in texts
-        ]  # Simple whitespace tokenizer
+        """
+        Build a BM25 index over the given corpus of texts.
+
+        Parameters
+        ----------
+        texts : List[str]
+            List of document texts.
+        doc_ids : List[str]
+            IDs for each text, matched by position.
+        """
+        # Very simple tokenization by whitespace split.
+        # For more advanced usage, you may plug in a real tokenizer.
+        tokenized_corpus = [text.split() for text in texts]
         self.bm25 = BM25Okapi(tokenized_corpus)
         self.doc_ids = doc_ids
         self.texts = texts
 
     def search(self, query: str, top_k: int = 10) -> List[Dict]:
+        """
+        Compute BM25 scores for all documents and return the top-k.
+
+        Parameters
+        ----------
+        query : str
+            User query string.
+        top_k : int
+            Maximum number of results.
+
+        Returns
+        -------
+        List[Dict]
+            Each dict contains fields:
+            - 'id': document ID
+            - 'text': document text
+            - 'score': BM25 score (higher is better)
+        """
+        # Again, simple whitespace split as tokenizer.
         scores = self.bm25.get_scores(query.split())
+        # argsort in descending order by scores to get best matches.
         top_n = np.argsort(scores)[::-1][:top_k]
         return [
             {"id": self.doc_ids[i], "text": self.texts[i], "score": float(scores[i])}
@@ -157,55 +326,128 @@ class KeywordRetriever:
 
 class Reranker:
     """
-    對檢索結果進行語意重排序 (BGE Reranker)。
+    Neural reranker based on a cross-encoder model (e.g., BAAI/bge-reranker-large).
+
+    Use case
+    --------
+    - Take a query and a list of candidate documents.
+    - Score each (query, document) pair with a sequence classification model.
+    - Return the candidates sorted by this model score.
     """
 
     def __init__(self, model_name: str = "BAAI/bge-reranker-large"):
+        """
+        Load the cross-encoder reranker model.
+
+        Parameters
+        ----------
+        model_name : str
+            Hugging Face model name for the reranker.
+        """
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name).to(
             self.device
         )
+        # Put model in evaluation mode to disable dropout etc.
         self.model.eval()
 
     def rerank(self, query: str, docs: List[Dict], top_k: int) -> List[Dict]:
+        """
+        Rerank a list of candidate document dicts according to cross-encoder scores.
+
+        Parameters
+        ----------
+        query : str
+            User query string.
+        docs : List[Dict]
+            Documents to rerank, each expected to contain a 'text' field.
+        top_k : int
+            Number of top documents to return after reranking.
+
+        Returns
+        -------
+        List[Dict]
+            Top-k documents, sorted by model score in descending order. Each doc dict
+            is updated in-place to include a 'score' key.
+        """
         if not docs:
             return []
 
+        # Build input pairs: [query, document_text]
         pairs = [[query, d["text"]] for d in docs]
+
+        # Tokenize the pairs jointly (as cross-encoder expects).
         inputs = self.tokenizer(
             pairs, padding=True, truncation=True, return_tensors="pt", max_length=512
         ).to(self.device)
 
+        # Forward pass to obtain logits as scores.
         with torch.no_grad():
             scores = self.model(**inputs).logits.view(-1).float()
 
+        # Attach scores back to docs
         for i, score in enumerate(scores):
             docs[i]["score"] = score.item()
 
-        # Sort by new score descending
+        # Sort by descending score and return top_k
         return sorted(docs, key=lambda x: x["score"], reverse=True)[:top_k]
-
-
-# --- 2. Generation Components (LLM) ---
 
 
 class LLMClient:
     """
-    直接呼叫 vLLM 的 OpenAI-compatible /v1/chat/completions API。
+    Minimal HTTP client to talk to an OpenAI-compatible /chat/completions endpoint.
+
+    It does not depend on the official OpenAI Python SDK and instead uses `requests`,
+    which makes it suitable for custom or self-hosted LLM servers that emulate
+    the OpenAI API.
+
+    Attributes
+    ----------
+    model_name : str
+        Model identifier to send in the request payload.
+    base_url : str
+        Base URL of the API (e.g., http://localhost:8000/v1).
+    api_key : str
+        Bearer token for authentication (if required).
     """
 
     def __init__(
         self,
         model_name: str,
         base_url: str = "http://localhost:8000/v1",
-        api_key: str = "EMPTY",  # 如果有設 --api-key 再換成真的 key
+        api_key: str = "EMPTY",
     ):
+        """
+        Parameters
+        ----------
+        model_name : str
+            The model name that the backend expects.
+        base_url : str
+            Base URL of the OpenAI-compatible API.
+        api_key : str
+            Optional API key (use 'EMPTY' if not needed).
+        """
         self.model_name = model_name
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
 
     def generate(self, user_prompt: str, system_prompt: str = "") -> str:
+        """
+        Call the /chat/completions endpoint with a user + optional system prompt.
+
+        Parameters
+        ----------
+        user_prompt : str
+            The main user query or instruction.
+        system_prompt : str
+            Optional system message that defines assistant behavior.
+
+        Returns
+        -------
+        str
+            The assistant's response content. In case of error, returns an error string.
+        """
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -231,29 +473,52 @@ class LLMClient:
                 timeout=180,
             )
 
-            # ★ 這裡就能看到 400 Bad Request 的完整內容
             if resp.status_code != 200:
+                # Print some diagnostics for debugging HTTP/API issues.
                 print("\n=== LLM HTTP Error ===")
                 print(f"Status: {resp.status_code}")
                 print("Response body:")
-                print(resp.text[:2000])  # 可視需要截斷長度
+                print(resp.text[:2000])
                 print("=== End LLM HTTP Error ===\n")
                 return f"LLM Error: {resp.status_code} {resp.text}"
 
             data = resp.json()
+            # OpenAI-style response: choices[0].message.content
             return data["choices"][0]["message"]["content"]
 
         except Exception as e:
+            # Catch networking / JSON / other client-side exceptions.
             print("\n=== LLM Client Exception ===")
             print(repr(e))
             print("=== End LLM Client Exception ===\n")
             return f"LLM Error (client-side): {e}"
 
 
-# --- 3. The RAG Pipeline ---
-
-
 class RAGPipeline:
+    """
+    End-to-end Retrieval-Augmented Generation (RAG) pipeline.
+
+    Components
+    ----------
+    - embedder : EmbeddingModel
+        Used to embed user queries.
+    - store : VectorStore
+        FAISS-based vector index for semantic retrieval.
+    - llm : LLMClient
+        Client to talk to an LLM server.
+    - bm25 : Optional[KeywordRetriever]
+        Optional lexical retriever to complement semantic retrieval.
+    - reranker : Optional[Reranker]
+        Optional neural reranker to refine combined candidate list.
+
+    Methods
+    -------
+    - retrieve(query, top_k):
+        Returns a list of retrieved document dicts.
+    - run(question, system_prompt, template, additional_info, top_k):
+        Performs full RAG: retrieval + prompting LLM + JSON parsing.
+    """
+
     def __init__(
         self,
         embedder: EmbeddingModel,
@@ -262,6 +527,20 @@ class RAGPipeline:
         keyword_retriever: Optional[KeywordRetriever] = None,
         reranker: Optional[Reranker] = None,
     ):
+        """
+        Parameters
+        ----------
+        embedder : EmbeddingModel
+            Embedding model used for semantic search.
+        store : VectorStore
+            Vector index containing embedded documents.
+        llm : LLMClient
+            Client used to query the language model.
+        keyword_retriever : Optional[KeywordRetriever]
+            Additional keyword-based retriever (BM25).
+        reranker : Optional[Reranker]
+            Cross-encoder reranker applied on merged candidates.
+        """
         self.embedder = embedder
         self.store = store
         self.llm = llm
@@ -269,27 +548,46 @@ class RAGPipeline:
         self.reranker = reranker
 
     def retrieve(self, query: str, top_k: int = 10) -> List[Dict]:
-        # 1. Dense Retrieval (Vector)
+        """
+        Retrieve relevant documents for a query using:
+        1) Vector similarity search.
+        2) Optional BM25 lexical search.
+        3) Optional cross-encoder reranking.
+
+        Parameters
+        ----------
+        query : str
+            User query string.
+        top_k : int
+            Target number of final results.
+
+        Returns
+        -------
+        List[Dict]
+            List of retrieved document dicts with 'id', 'text', 'score', and 'doc_id'.
+        """
+        # Embed the query once to perform vector search.
         q_emb = self.embedder.embed([query])[0]
         vector_results = self.store.search(q_emb, top_k=top_k)
 
-        # 2. Sparse Retrieval (BM25) - Optional
-        bm25_results = []
+        bm25_results: List[Dict[str, Any]] = []
         if self.bm25:
+            # Optionally get lexical retrieval results as well.
             bm25_results = self.bm25.search(query, top_k=top_k)
 
-        # 3. Merge & Deduplicate
+        # Merge results from both retrievers, ensuring unique IDs.
         seen_ids = set()
-        merged_results = []
+        merged_results: List[Dict[str, Any]] = []
         for res in vector_results + bm25_results:
             if res["id"] not in seen_ids:
                 merged_results.append(res)
                 seen_ids.add(res["id"])
 
-        # 4. Rerank - Optional
+        # Optionally rerank with a more expensive model.
         if self.reranker:
             merged_results = self.reranker.rerank(query, merged_results, top_k=top_k)
         else:
+            # Otherwise, just truncate to top_k by original ordering.
             merged_results = merged_results[:top_k]
 
         return merged_results
@@ -302,29 +600,70 @@ class RAGPipeline:
         additional_info: Dict = {},
         top_k: int = 5,
     ) -> Dict:
+        """
+        Run the full RAG process for a single question.
 
-        # A. Retrieve Context
+        Steps
+        -----
+        1. Retrieve top-k context documents.
+        2. Format a prompt using a user-supplied template.
+        3. Call the LLM via LLMClient.
+        4. Try to parse the LLM response as JSON (for structured answers).
+
+        Parameters
+        ----------
+        question : str
+            User's question for the RAG system.
+        system_prompt : str
+            System message to control the LLM's behavior.
+        template : str
+            Template string for building the final user prompt; must contain
+            placeholders {question}, {context}, and {additional_info}.
+        additional_info : Dict
+            Additional metadata or parameters to pass into the prompt (JSON-encoded).
+        top_k : int
+            Number of documents to use as context.
+
+        Returns
+        -------
+        Dict
+            Dictionary containing:
+            - 'question': original question string.
+            - 'answer': parsed JSON from the LLM (or error structure).
+            - 'raw_response': raw text returned by the LLM.
+            - 'retrieved_docs': list of document IDs used as context.
+        """
+        # Step 1: retrieve relevant documents
         context_docs = self.retrieve(question, top_k=top_k)
+
+        # Helper to decide how to label each doc in the final context string.
+        def _label(d: Dict[str, Any]) -> str:
+            # Prefer base doc_id if present; otherwise use full id.
+            return d.get("doc_id") or d["id"]
+
+        # Build a textual context with doc labels and truncated text.
         context_str = "\n\n".join(
-            [f"Doc [{d['id']}]: {d['text'][:MAX_DOC_CHARS]}" for d in context_docs]
+            [f"Doc [{_label(d)}]: {d['text'][:MAX_DOC_CHARS]}" for d in context_docs]
         )
 
-        # B. Format Prompt
+        # Step 2: fill in the provided template.
         formatted_prompt = template.format(
             question=question,
             context=context_str,
             additional_info=json.dumps(additional_info, ensure_ascii=False),
         )
 
-        # C. Generate Answer
+        # Step 3: query the LLM.
         raw_answer = self.llm.generate(formatted_prompt, system_prompt)
 
-        # D. Parse Output (Try JSON)
+        # Step 4: try to parse the response as JSON (robust to extra text).
         try:
+            # Heuristic: take the substring from first '{' to last '}'.
             json_start = raw_answer.find("{")
             json_end = raw_answer.rfind("}") + 1
             parsed_answer = json.loads(raw_answer[json_start:json_end])
-        except:
+        except Exception:
+            # Fallback: return raw answer for debugging if JSON fails.
             parsed_answer = {"error": "JSON parsing failed", "raw": raw_answer}
 
         return {
@@ -335,11 +674,16 @@ class RAGPipeline:
         }
 
 
-# --- 4. Main Execution ---
-
 if __name__ == "__main__":
-    # === Step 1: Data Preparation (Toy Example) ===
+    """
+    Minimal example to demonstrate usage of the RAG pipeline.
 
+    It builds a tiny in-memory corpus of energy-related documents,
+    creates all components (EmbeddingModel, VectorStore, BM25, Reranker, LLMClient),
+    and then runs a sample query.
+    """
+
+    # Example corpus of 4 short documents.
     documents = [
         "Solar panels convert sunlight into electricity using photovoltaic cells.",
         "Wind turbines generate power by converting kinetic energy from wind.",
@@ -348,39 +692,39 @@ if __name__ == "__main__":
     ]
     doc_ids = ["doc_1", "doc_2", "doc_3", "doc_4"]
 
-    # === Step 2: Initialize Components ===
-
-    # A. Embedding
+    # Initialize the embedding model.
+    # Note: Using "google/embeddinggemma-300m" here as an example; make sure this
+    # model is available and supports embedding usage.
     embedder = EmbeddingModel(model_name="google/embeddinggemma-300m")
 
-    # B. Vector Store
+    # Compute embeddings for all documents.
     doc_embeddings = embedder.embed(documents)
+
+    # Create a vector store with the correct embedding dimensionality.
     vector_store = VectorStore(dim=doc_embeddings.shape[1])
+    # Add document embeddings and metadata into the vector store.
     vector_store.add(doc_embeddings, doc_ids, documents)
 
-    # C. Keyword Retriever & Reranker
+    # Initialize BM25 keyword retriever for the same documents.
     bm25 = KeywordRetriever(documents, doc_ids)
+
+    # Initialize cross-encoder reranker model.
     reranker = Reranker(model_name="BAAI/bge-reranker-large")
 
-    # D. LLM (Switch here for vLLM!)
-    # 如果您用 vLLM，確保 server 已啟動: python -m vllm.entrypoints.openai.api_server ...
-    # llm = LLMClient(
-    #    model_name="gpt-4o-mini",  # 換成您的 vLLM 模型名稱 (e.g., "meta-llama/Llama-3-8b-instruct")
-    #    base_url="https://api.openai.com/v1", # 若用 vLLM 改為 "http://localhost:8000/v1"
-    #    api_key=os.getenv("OPENAI_API_KEY") # vLLM 通常不需要 key，傳 "EMPTY"
-    # )
-
+    # Create an LLM client pointing to a local OpenAI-compatible endpoint.
     llm = LLMClient(
-        model_name="openai/gpt-oss-20b",  # 您的 vLLM 模型名稱
-        base_url="http://localhost:8000/v1",  # 指向 vLLM server
-        api_key="EMPTY",  # vLLM 不需要 key
+        model_name="openai/gpt-oss-20b",
+        base_url="http://localhost:8000/v1",
+        api_key="EMPTY",
     )
 
-    # === Step 3: Build Pipeline ===
+    # Assemble the RAG pipeline with all components.
     pipeline = RAGPipeline(embedder, vector_store, llm, bm25, reranker)
 
-    # === Step 4: Run Inference ===
+    # System prompt to steer the model behavior; asks for JSON responses.
     sys_prompt = "You are a helpful physics assistant. Respond in JSON format."
+
+    # Template defining how the RAG context and question are provided to the LLM.
     user_template = """
     Question: {question}
     
@@ -392,6 +736,7 @@ if __name__ == "__main__":
     Answer in JSON format containing 'answer' and 'explanation'.
     """
 
+    # Run the RAG pipeline for a sample question.
     result = pipeline.run(
         question="How do wind turbines work?",
         system_prompt=sys_prompt,
@@ -399,6 +744,7 @@ if __name__ == "__main__":
         top_k=2,
     )
 
+    # Pretty-print final structured answer.
     print("\n=== Result ===")
     print(json.dumps(result["answer"], indent=2, ensure_ascii=False))
     print(f"\nDocs Used: {result['retrieved_docs']}")
