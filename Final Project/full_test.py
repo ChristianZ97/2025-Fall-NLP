@@ -1,3 +1,5 @@
+# full_test.py
+
 import os
 from pathlib import Path
 import pandas as pd
@@ -98,23 +100,20 @@ Answer in JSON format containing 'answer' and 'explanation'.
 # ---------------------------------------------------------------------
 # 4. full_test：跑完整 test_Q.csv，產出 submission_full_test.csv
 # ---------------------------------------------------------------------
-
-
 def run_full_test():
-    tqdm.pandas()
     train_qa = pd.read_csv(DATA_DIR / "train_QA.csv")
     test_q = pd.read_csv(DATA_DIR / "test_Q.csv")
-
     expected_columns = list(train_qa.columns)
 
-    pipeline_build_start = time.time()
     pipeline = build_rag_pipeline()
-    pipeline_build_end = time.time()
-    print(f"Pipeline built in {pipeline_build_end - pipeline_build_start:.1f} seconds")
 
-    def answer_one_row(row):
+    records = []  # 先放在 list，最後再組成 DataFrame
+
+    for idx, row in test_q.iterrows():
+        question_id = row["id"]
         question = row["question"]
-        meta = {"id": row["id"]}
+
+        meta = {"id": question_id}
 
         result = pipeline.run(
             question=question,
@@ -124,18 +123,31 @@ def run_full_test():
             top_k=5,
         )
 
-        parsed = result.get("answer", {})
+        # 安全解析：先統一成 dict
+        raw_answer = result.get("answer", {})
+        if isinstance(raw_answer, dict):
+            parsed = raw_answer
+        else:
+            # 若模型直接回傳字串或亂格式，就當作沒成功解析
+            parsed = {}
 
         out = {}
         for col in expected_columns:
             if col == "id":
-                out[col] = row["id"]
+                out[col] = question_id
             elif col == "question":
-                out[col] = row["question"]
+                out[col] = question
             elif col == "answer":
-                out[col] = parsed.get("answer", FALLBACK_ANSWER)
+                # 保證是非空字串，否則用 FALLBACK_ANSWER
+                answer_text = parsed.get("answer")
+                if not isinstance(answer_text, str) or not answer_text.strip():
+                    answer_text = FALLBACK_ANSWER
+                out[col] = answer_text
             elif col == "explanation":
-                out[col] = parsed.get("explanation", "is_blank")
+                expl_text = parsed.get("explanation")
+                if not isinstance(expl_text, str) or not expl_text.strip():
+                    expl_text = "is_blank"
+                out[col] = expl_text
             elif col in [
                 "answer_value",
                 "answer_unit",
@@ -147,27 +159,51 @@ def run_full_test():
             else:
                 out[col] = "is_blank"
 
-        return pd.Series(out)
+        # 每隔 N 筆印一次，確認回應正常
+        N = 20  # 例如每 20 題看一次
+        if (idx % N) == 0:
+            print(f"\n=== Sample #{idx} / id={question_id} ===")
+            print("Q:", question)
+            print("Model answer:", out["answer"])
+            print("Explanation:", out["explanation"])
 
-    n_questions = len(test_q)
-    print(f"Running full_test on {n_questions} questions...")
+        records.append(out)
 
-    start_time = time.time()
 
-    # 關鍵：用 progress_apply 取代 apply，會顯示進度條+時間資訊
-    submission = test_q.progress_apply(answer_one_row, axis=1)
-
-    end_time = time.time()
-    total_sec = end_time - start_time
-    per_q = total_sec / max(n_questions, 1)
-
-    print(f"Answering finished in {total_sec:.1f} seconds")
-    print(f"Average {per_q:.2f} seconds per question")
-
+    # 組成 DataFrame 並確保欄位順序
+    submission = pd.DataFrame(records)
     submission = submission[expected_columns]
+
+    # 最終安全檢查：把所有可能的 NaN 補成字串
+    submission = submission.fillna({
+        "answer": FALLBACK_ANSWER,
+        "answer_value": "is_blank",
+        "answer_unit": "is_blank",
+        "ref_id": "is_blank",
+        "ref_url": "is_blank",
+        "supporting_materials": "is_blank",
+        "explanation": "is_blank",
+    })
+
     out_path = Path("./submission.csv")
     submission.to_csv(out_path, index=False)
     print("Saved full-test submission to", out_path)
+    validate_submission_csv(out_path, expected_columns)
+
+
+def validate_submission_csv(path: Path, expected_columns):
+    df = pd.read_csv(path)
+
+    # 1. 欄位名稱 / 順序完全相同
+    assert list(df.columns) == list(expected_columns), "CSV columns mismatch!"
+
+    # 2. 不允許任何 NaN / None
+    assert not df.isnull().any().any(), "Submission contains null/NaN values!"
+
+    # 3. 筆數要等於 test 集大小（可選：用 test_q.shape[0] 傳進來檢查）
+    print(f"Submission rows: {len(df)}")
+    print(df.head(3))
+
 
 
 # ---------------------------------------------------------------------
