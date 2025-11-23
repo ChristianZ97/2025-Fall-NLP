@@ -24,6 +24,13 @@ from prompts import SYS_PROMPT, USER_TEMPLATE
 # Maximum number of parallel threads (concurrent questions being processed at once)
 MAX_NUM_SEQS = 12
 
+# Maximum character and their overlapping of each document chunk
+MAX_CHARS = 512
+OVERLAP = 64
+
+# Top K chunks to select
+TOP_K = 50
+
 # Data directories and file paths
 DATA_DIR = Path("./data/WattBot2025")
 DOC_DIR = DATA_DIR / "download" / "texts"
@@ -165,7 +172,7 @@ def build_rag_pipeline():
 
     # Convert each document into one or more chunks
     for text, did in zip(documents, doc_ids):
-        chunks = chunk_document(did, text, max_chars=1200, overlap=200)
+        chunks = chunk_document(did, text, max_chars=MAX_CHARS, overlap=OVERLAP)
         for cid, ctext in chunks:
             chunk_ids.append(cid)
             chunk_texts.append(ctext)
@@ -253,7 +260,7 @@ def run_full_test():
             system_prompt=SYS_PROMPT,
             template=USER_TEMPLATE,
             additional_info=meta,
-            top_k=20,
+            top_k=TOP_K,
         )
 
         # 'answer' field of result is expected to be a dict (parsed JSON) or error
