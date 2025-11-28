@@ -19,7 +19,8 @@ from rag_pipeline import (
 )
 
 # Import prompt templates (system + user) from prompts.py
-from prompts import SYS_PROMPT, USER_TEMPLATE
+# from prompts import SYS_PROMPT, USER_TEMPLATE
+from new_prompts import SYS_PROMPT, USER_TEMPLATE
 
 # Maximum number of parallel threads (concurrent questions being processed at once)
 MAX_NUM_SEQS = 12
