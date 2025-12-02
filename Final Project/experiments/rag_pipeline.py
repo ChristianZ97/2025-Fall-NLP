@@ -26,12 +26,6 @@ MAX_DOC_CHARS = 16384
 class EmbeddingModel:
     """
     Wrapper around a Hugging Face embedding model with an on-disk SQLite cache.
-
-    Features
-    --------
-    - Uses a transformer model (e.g., jinaai/jina-embeddings-v3) to generate embeddings.
-    - Maintains an SQLite database to cache embeddings and avoid recomputation.
-    - Supports batch embedding of multiple texts.
     """
 
     def __init__(
@@ -39,21 +33,9 @@ class EmbeddingModel:
         model_name: str = "jinaai/jina-embeddings-v3",
         cache_path: str = "embed_cache.db",
     ):
-        """
-        Initialize the embedding model and its cache.
-
-        Parameters
-        ----------
-        model_name : str
-            Name of the Hugging Face model to load.
-        cache_path : str
-            Path to the SQLite database used to cache embeddings.
-        """
-        # Use GPU if available, else default to CPU.
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"Loading Embedding Model: {model_name} on {self.device}...")
 
-        # Load tokenizer and model; trust_remote_code allows custom model implementations.
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=True
         )
@@ -61,40 +43,25 @@ class EmbeddingModel:
             self.device
         )
 
-        # Path (file name) for SQLite caching database.
         self.cache_db = cache_path
         self._init_cache()
 
     def _init_cache(self) -> None:
         """
         Initialize the SQLite cache table if it does not exist.
-
-        Table schema
-        ------------
-        cache(
-            hash TEXT PRIMARY KEY,  -- MD5 hash of the text
-            embedding BLOB          -- Pickled numpy array
-        )
+        Using WAL mode for better concurrency.
         """
-        with sqlite3.connect(self.cache_db) as conn:
+        # 修改 1: 增加 timeout 和 check_same_thread=False
+        with sqlite3.connect(
+            self.cache_db, timeout=30.0, check_same_thread=False
+        ) as conn:
+            # 修改 2: 啟用 WAL 模式 (Write-Ahead Logging)，大幅減少鎖定機率
+            conn.execute("PRAGMA journal_mode=WAL;")
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS cache (hash TEXT PRIMARY KEY, embedding BLOB)"
             )
 
     def _get_hash(self, text: str) -> str:
-        """
-        Compute a stable hash for a piece of text, used as the cache key.
-
-        Parameters
-        ----------
-        text : str
-            Input text.
-
-        Returns
-        -------
-        str
-            Hex-encoded MD5 hash of the text.
-        """
         return hashlib.md5(text.encode()).hexdigest()
 
     def embed(
@@ -103,34 +70,15 @@ class EmbeddingModel:
         batch_size: int = 16,
         max_length: int = 512,
     ) -> np.ndarray:
-        """
-        Embed a list of texts into dense vectors, using an on-disk SQLite cache.
-
-        Parameters
-        ----------
-        texts : List[str]
-            List of raw text strings to embed.
-        batch_size : int, optional
-            Number of texts to encode per forward pass. Smaller values reduce
-            GPU memory usage at the cost of speed.
-        max_length : int, optional
-            Maximum number of tokens per text. Longer texts will be truncated
-            by the tokenizer. This helps control memory usage.
-
-        Returns
-        -------
-        np.ndarray
-            2D numpy array of shape (len(texts), embedding_dim) with dtype float32.
-        """
-        # Placeholder list for final embeddings (some may be filled from cache).
         embeddings: List[Optional[np.ndarray]] = [None] * len(texts)
-
-        # Lists to track which texts are missing from cache.
         indices_to_compute: List[int] = []
         texts_to_compute: List[str] = []
 
-        # Step 1: check the cache for each text.
-        with sqlite3.connect(self.cache_db) as conn:
+        # Step 1: Check cache
+        # 修改 3: 讀取時也加上 timeout 和 check_same_thread
+        with sqlite3.connect(
+            self.cache_db, timeout=30.0, check_same_thread=False
+        ) as conn:
             cur = conn.cursor()
             for i, text in enumerate(texts):
                 h = self._get_hash(text)
@@ -138,25 +86,25 @@ class EmbeddingModel:
                     "SELECT embedding FROM cache WHERE hash=?", (h,)
                 ).fetchone()
                 if row is not None:
-                    # Cache hit: unpickle stored embedding.
                     embeddings[i] = pickle.loads(row[0])
                 else:
-                    # Cache miss: remember index & text for later computation.
                     indices_to_compute.append(i)
                     texts_to_compute.append(text)
 
-        # Step 2: compute embeddings for cache-miss texts in mini-batches.
+        # Step 2: Compute missing embeddings
         if indices_to_compute:
             self.model.eval()
 
             with torch.no_grad():
-                with sqlite3.connect(self.cache_db) as conn:
+                # 修改 4: 寫入時同樣加上參數
+                with sqlite3.connect(
+                    self.cache_db, timeout=30.0, check_same_thread=False
+                ) as conn:
                     for start in range(0, len(indices_to_compute), batch_size):
                         end = start + batch_size
                         batch_indices = indices_to_compute[start:end]
                         batch_texts = [texts[i] for i in batch_indices]
 
-                        # Tokenize this mini-batch with padding & truncation.
                         inputs = self.tokenizer(
                             batch_texts,
                             return_tensors="pt",
@@ -165,19 +113,16 @@ class EmbeddingModel:
                             max_length=max_length,
                         ).to(self.device)
 
-                        # Forward pass through the model.
-                        # Here we perform simple mean pooling over the last hidden state.
                         outputs = self.model(**inputs)
-                        #batch_embs = (
-                        #    outputs.last_hidden_state.mean(dim=1)
-                        #    cpu()
-                        #    .numpy()
-                        #    .dtype(float32)
-                        #)
-                        batch_embs = outputs.last_hidden_state.mean(dim=1).to(torch.float32).cpu().numpy()
 
+                        # 您之前的修正保留在這裡 (BFloat16 -> Float32 -> Numpy)
+                        batch_embs = (
+                            outputs.last_hidden_state.mean(dim=1)
+                            .to(torch.float32)
+                            .cpu()
+                            .numpy()
+                        )
 
-                        # Store results in memory and in the SQLite cache.
                         for local_idx, global_idx in enumerate(batch_indices):
                             emb = batch_embs[local_idx]
                             embeddings[global_idx] = emb
@@ -187,11 +132,12 @@ class EmbeddingModel:
                                 (h, pickle.dumps(emb)),
                             )
 
-                        # Optional: free unused CUDA memory to reduce fragmentation.
+                        # 建議：在每次 batch 寫入後立即 commit，減少長時間持有鎖
+                        conn.commit()
+
                         if self.device == "cuda":
                             torch.cuda.empty_cache()
 
-        # At this point all entries in 'embeddings' should be non-None.
         return np.stack(embeddings, axis=0).astype("float32")
 
 
