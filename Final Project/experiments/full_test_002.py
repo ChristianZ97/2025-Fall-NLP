@@ -18,9 +18,7 @@ from rag_pipeline import (
     RAGPipeline,
 )
 
-# Import prompt templates (system + user) from prompts.py
-# from prompts import SYS_PROMPT, USER_TEMPLATE
-from new_prompts import SYS_PROMPT, USER_TEMPLATE
+# Import prompt templates (system + user)
 
 # Maximum number of parallel threads (concurrent questions being processed at once)
 MAX_NUM_SEQS = 12
@@ -29,12 +27,11 @@ MAX_NUM_SEQS = 12
 MAX_CHARS = 512
 OVERLAP = 64
 
-# Top K chunks to select
+# This controls how to retrieve the chunks
 TOP_K = 50
 
 # Data directories and file paths
 DATA_DIR = Path("./data/WattBot2025")
-DOC_DIR = DATA_DIR / "download" / "texts"
 
 # Fallback answer if the model fails to produce a valid answer
 FALLBACK_ANSWER = "Unable to answer with confidence based on the provided documents."
@@ -43,6 +40,24 @@ FALLBACK_ANSWER = "Unable to answer with confidence based on the provided docume
 META_PATH = DATA_DIR / "metadata.csv"
 meta_df = pd.read_csv(META_PATH, encoding="latin1")
 ID2URL = dict(zip(meta_df["id"], meta_df["url"]))
+
+
+## hypers
+# This controls how to parse the source documents
+DOC_DIR = DATA_DIR / "download" / "pdf_texts"  # 0
+# DOC_DIR = DATA_DIR / "download" / "tex_texts" # 1
+
+# This controls what embedding model to use
+EMBEDDING = "jinaai/jina-embeddings-v3"  # 0
+# EMBEDDING = "google/embeddinggemma-300m" # 1
+
+# This controls how to prompt the LLM
+# from prompt_v0 import SYS_PROMPT, USER_TEMPLATE # 0
+# from prompt_v1 import SYS_PROMPT, USER_TEMPLATE # 1
+from prompt_v2 import SYS_PROMPT, USER_TEMPLATE  # 2
+
+# This controls the output path
+OUT_PATH = Path("./result_000/submission.csv")
 
 
 def load_text_documents(doc_dir: Path):
@@ -181,8 +196,7 @@ def build_rag_pipeline():
     print(f"Loaded {len(documents)} docs, produced {len(chunk_texts)} chunks.")
 
     # Initialize the embedding model once; this is usually the heaviest step
-    # embedder = EmbeddingModel(model_name="google/embeddinggemma-300m")
-    embedder = EmbeddingModel(model_name="jinaai/jina-embeddings-v3")
+    embedder = EmbeddingModel(model_name=EMBEDDING)
 
     # Compute embeddings for all chunks
     chunk_embeddings = embedder.embed(chunk_texts)
@@ -404,12 +418,11 @@ def run_full_test():
     )
 
     # Save submission CSV to the project root.
-    out_path = Path("./submission.csv")
-    submission.to_csv(out_path, index=False)
-    print("Saved full-test submission to", out_path)
+    submission.to_csv(OUT_PATH, index=False)
+    print("Saved full-test submission to", OUT_PATH)
 
     # Run simple validation checks.
-    validate_submission_csv(out_path, expected_columns)
+    validate_submission_csv(OUT_PATH, expected_columns)
 
 
 def validate_submission_csv(path: Path, expected_columns):
