@@ -43,10 +43,8 @@ for file in $(ls full_test_*.py | sort); do
     fi
 
     # Clean up cache after each run to prevent dimension mismatch errors in the next script
-    if [ -f "embed_cache.db" ]; then
-        echo " Cleaning up embed_cache.db..."
-        rm embed_cache.db
-    fi
+    echo " Cleaning up embed_cache.db..."
+    rm -f embed_cache*
 done
 
 # Calculate duration
