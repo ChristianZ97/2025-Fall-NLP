@@ -144,88 +144,52 @@ class EmbeddingModel:
 class VectorStore:
     """
     Simple FAISS-based vector store using L2 similarity (IndexFlatL2).
-
-    Features
-    --------
-    - Stores vectors in a FAISS index for efficient similarity search.
-    - Maintains a parallel Python list 'doc_map' to map from FAISS index positions
-      back to document IDs and text.
+    Thread-safe version.
     """
 
     def __init__(self, dim: int = 1024):
-        """
-        Parameters
-        ----------
-        dim : int
-            Dimensionality of the embeddings.
-            Must match the output dimension of the embedding model.
-        """
         self.dim = dim
-        # IndexFlatL2 is a basic, non-compressed, exact L2-distance index.
         self.index = faiss.IndexFlatL2(dim)
-        # doc_map[i] stores metadata for the vector at position i in the FAISS index.
         self.doc_map: List[Dict[str, Any]] = []
 
-    def add(self, embeddings: np.ndarray, doc_ids: List[str], texts: List[str]) -> None:
-        """
-        Add new vectors and their metadata to the vector store.
+        # 2. 初始化一個執行緒鎖
+        self.lock = threading.Lock()
 
-        Parameters
-        ----------
-        embeddings : np.ndarray
-            Embedding matrix of shape (n, dim).
-        doc_ids : List[str]
-            Identifiers for each embedding (one per row).
-        texts : List[str]
-            Original text corresponding to each embedding.
-        """
-        # Sanity check: dimension must match index dimension.
+    def add(self, embeddings: np.ndarray, doc_ids: List[str], texts: List[str]) -> None:
         if embeddings.shape[1] != self.dim:
             raise ValueError(
                 f"Embedding dim {embeddings.shape[1]} != Index dim {self.dim}"
             )
 
-        # Add embeddings to FAISS index (in memory).
-        self.index.add(embeddings)
+        # 雖然 add 通常是單線程初始化的，但為了保險也可以加鎖
+        with self.lock:
+            self.index.add(embeddings)
 
-        # Add metadata entries in the parallel Python list.
-        for did, txt in zip(doc_ids, texts):
-            # 'base_id' strips off any fragment after '#', if present.
-            base_id = did.split("#", 1)[0]
-            self.doc_map.append(
-                {
-                    "id": did,  # Possibly includes section or chunk info.
-                    "doc_id": base_id,  # Base document ID (without fragment).
-                    "text": txt,  # Raw text content.
-                }
-            )
+            # Add metadata entries
+            for did, txt in zip(doc_ids, texts):
+                base_id = did.split("#", 1)[0]
+                self.doc_map.append(
+                    {
+                        "id": did,
+                        "doc_id": base_id,
+                        "text": txt,
+                    }
+                )
 
     def search(self, query_emb: np.ndarray, top_k: int = 10) -> List[Dict]:
         """
         Perform a vector similarity search against the FAISS index.
-
-        Parameters
-        ----------
-        query_emb : np.ndarray
-            1D embedding vector representing the query (shape: (dim,)).
-        top_k : int
-            Maximum number of results to return.
-
-        Returns
-        -------
-        List[Dict]
-            List of document metadata dicts, each augmented with a 'score' field
-            representing the L2 distance (lower is more similar).
+        Thread-safe.
         """
-        # FAISS expects a 2D array; reshape the query to (1, dim).
-        scores, indices = self.index.search(query_emb.reshape(1, -1), top_k)
+        # 3. 在搜尋時加鎖，這行是最關鍵的修正
+        with self.lock:
+            # FAISS expects a 2D array; reshape the query to (1, dim).
+            scores, indices = self.index.search(query_emb.reshape(1, -1), top_k)
 
         results: List[Dict[str, Any]] = []
         for score, idx in zip(scores[0], indices[0]):
-            # FAISS returns -1 for invalid entries if fewer vectors are in the index.
             if idx != -1:
                 doc = self.doc_map[idx].copy()
-                # Score is the L2 distance; lower means closer. Consumers may want to invert.
                 doc["score"] = float(score)
                 results.append(doc)
         return results
