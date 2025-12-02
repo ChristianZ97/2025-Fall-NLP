@@ -174,7 +174,7 @@ class EmbeddingModel:
                         #    .numpy()
                         #    .dtype(float32)
                         #)
-                        batch_embs = torch(outputs.last_hidden_state.mean(dim=1), dtype=torch.float).cpu().numpy()
+                        batch_embs = outputs.last_hidden_state.mean(dim=1).to(torch.float32).cpu().numpy()
 
 
                         # Store results in memory and in the SQLite cache.
