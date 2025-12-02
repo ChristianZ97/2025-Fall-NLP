@@ -57,7 +57,7 @@ EMBEDDING = "jinaai/jina-embeddings-v3"  # 0
 from prompt_v2 import SYS_PROMPT, USER_TEMPLATE  # 2
 
 # This controls the output path
-OUT_PATH = Path("./result_000/submission.csv")
+OUT_PATH = Path("./result_002/submission.csv")
 OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 

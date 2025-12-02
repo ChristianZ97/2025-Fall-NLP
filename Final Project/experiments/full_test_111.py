@@ -58,7 +58,7 @@ from prompt_v1 import SYS_PROMPT, USER_TEMPLATE  # 1
 # from prompt_v2 import SYS_PROMPT, USER_TEMPLATE # 2
 
 # This controls the output path
-OUT_PATH = Path("./result_100/submission.csv")
+OUT_PATH = Path("./result_111/submission.csv")
 OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
