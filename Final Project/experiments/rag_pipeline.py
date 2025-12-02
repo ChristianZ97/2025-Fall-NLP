@@ -168,12 +168,14 @@ class EmbeddingModel:
                         # Forward pass through the model.
                         # Here we perform simple mean pooling over the last hidden state.
                         outputs = self.model(**inputs)
-                        batch_embs = (
-                            outputs.last_hidden_state.mean(dim=1)
-                            .cpu()
-                            .numpy()
-                            .astype("float32")
-                        )
+                        #batch_embs = (
+                        #    outputs.last_hidden_state.mean(dim=1)
+                        #    cpu()
+                        #    .numpy()
+                        #    .dtype(float32)
+                        #)
+                        batch_embs = torch(outputs.last_hidden_state.mean(dim=1), dtype=float32).cpu().numpy()
+
 
                         # Store results in memory and in the SQLite cache.
                         for local_idx, global_idx in enumerate(batch_indices):
@@ -717,7 +719,7 @@ if __name__ == "__main__":
     # Initialize the embedding model.
     # Note: Using "google/embeddinggemma-300m" here as an example; make sure this
     # model is available and supports embedding usage.
-    embedder = EmbeddingModel(model_name="google/embeddinggemma-300m")
+    embedder = EmbeddingModel()
 
     # Compute embeddings for all documents.
     doc_embeddings = embedder.embed(documents)
