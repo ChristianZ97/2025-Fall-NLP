@@ -15,6 +15,7 @@ import numpy as np
 import faiss
 from rank_bm25 import BM25Okapi
 from openai import OpenAI  # Note: imported but not used directly in this file.
+import threading
 
 from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification
 
