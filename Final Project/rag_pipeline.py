@@ -170,9 +170,10 @@ class EmbeddingModel:
                         outputs = self.model(**inputs)
                         batch_embs = (
                             outputs.last_hidden_state.mean(dim=1)
+                            .float()
                             .cpu()
                             .numpy()
-                            .astype("float32")
+                            # .astype("float32")
                         )
 
                         # Store results in memory and in the SQLite cache.
