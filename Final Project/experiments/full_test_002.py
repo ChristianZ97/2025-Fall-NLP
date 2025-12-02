@@ -28,7 +28,7 @@ MAX_CHARS = 512
 OVERLAP = 64
 
 # This controls how to retrieve the chunks
-TOP_K = 50
+TOP_K = 20
 
 # Data directories and file paths
 DATA_DIR = Path("./data/WattBot2025")
